@@ -121,7 +121,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
     - If allowed: Decent profit (+$20), small reputation boost (+3). They're grateful but loud.
     - If rejected: Moderate reputation loss (-5). They make a scene at the door.
   - Hungry Poor Person:
-    - Desperate and broke. Budget is None or Low.
+    - Desperate and broke. Budget is None or Low. Mood MUST be 'Desperate'.
     - If allowed (compassionate decision): Small profit (+$5), big reputation boost (+10 for being kind).
     - If rejected: Small reputation loss (-3). They leave sadly.
   - Student:

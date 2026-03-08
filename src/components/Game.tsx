@@ -611,6 +611,7 @@ export default function Game() {
 
                 VOICE INSTRUCTION: Speak with a tone that matches your mood (${char.stats.mood}).
                 If Angry, sound annoyed or loud. If Desperate, sound pleading. If Arrogant, sound condescending.
+                ${char.archetype === 'Hungry Poor Person' ? "IMPORTANT: You are extremely hungry and broke. Show this physically and emotionally — mention your stomach growling, how long it's been since you ate, how little money you have. Sound embarrassed but truly desperate. Don't hide it." : ''}
 
                 You are speaking TO the bouncer. They are the one asking questions. You are the one answering and trying to get in.
                 Keep responses short, spoken, and in character. Do not describe your actions, just speak.
