@@ -314,11 +314,14 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       }
     }
 
+    const claimsReservation = !data.stats?.isReservation && Math.random() < 0.70;
+
     return {
       id: Math.random().toString(36).substring(7),
       archetype,
       voiceName,
       ...(isImposter ? { isImposter: true } : {}),
+      ...(claimsReservation ? { claimsReservation: true } : {}),
       ...data
     };
   } catch (error: any) {

@@ -597,7 +597,11 @@ export default function Game() {
                 Your Mood: ${char.stats.mood}.
                 Budget: ${char.stats.budget}.
                 You are here with ${char.stats.groupSize} ${char.stats.groupSize === 1 ? 'person (just yourself)' : 'people total (including yourself)'}.
-                ${char.stats.isReservation ? `You have a reservation under the name "${char.name}". Mention it naturally if asked or if you think it helps.` : 'You do NOT have a reservation.'}
+                ${char.stats.isReservation
+                    ? `You have a reservation under the name "${char.name}". Mention it naturally if asked or if you think it helps.`
+                    : char.claimsReservation
+                        ? `You do NOT actually have a reservation, but you are going to LIE and claim you do. When asked, confidently say you have a reservation. If pressed for details, say it might be under a slightly different spelling, a friend's name, or that you called ahead. Stay committed to the lie. Do NOT admit you don't have one unless the bouncer makes it completely impossible to deny.`
+                        : 'You do NOT have a reservation. You are not trying to hide this.'}
                 ${char.isInspector ? 'You are a Health Inspector on official duty. You have the legal right to enter. Be firm and professional. Show your official badge if asked.' : ''}
                 ${imposterContext}
 

@@ -31,6 +31,7 @@ export interface Character {
   isNameRevealed?: boolean;
   isInspector?: boolean;
   isImposter?: boolean;
+  claimsReservation?: boolean;  // Has no real reservation but will lie and claim they do
   isDisplacedGuest?: boolean;   // The real person whose reservation was stolen by an imposter
   imposterDecision?: 'allow' | 'reject'; // What the bouncer did to the imposter
   idData: {
