@@ -42,6 +42,27 @@ const ARCHETYPES: Archetype[] = [
   'Average Joe'
 ];
 
+const FALLBACK_BACKSTORIES: Record<Archetype, string> = {
+  'Rushed Family': "I'm trying to keep this night from collapsing. My partner and I promised the kids a proper dinner before the babysitter's hard cutoff, and we already lost twenty minutes in traffic. One of the kids is overtired and close to a meltdown, so every delay feels like a disaster. If we can just get seated soon, I can still salvage this evening.",
+  'Hungry Poor Person': "I haven't had a real meal in two days, and the little cash I have barely covers anything. I came here because they sometimes let people in late and I thought maybe I could get something small without being judged. I'm ashamed of how desperate I sound, but hunger makes pride feel pointless. I just need one decent plate and a quiet corner.",
+  'Student': "I spent all week buried in classes and part-time shifts, and tonight was supposed to be my small reward. My friends bailed, but I still came because I need one normal evening that isn't assignments and stress. I'm watching every dollar, so I already know exactly what I can afford. I want to look confident, but honestly I'm just tired and hoping for a break.",
+  'Influencer': "This spot is trending and I need fresh content before the algorithm buries me. I already planned the angle: 'hidden gem with chaotic door energy' and that can go very well or very badly for this place. I expect people to recognize my value, and I get irritated fast when I feel ignored. If they treat me right, I'll post them to thousands tonight.",
+  'Angry Customer': "Last time I came here they messed up my table, my order, and acted like I was the problem. I told myself I wouldn't come back, but I came because I want to see if they learned anything or if it's still the same circus. I'm replaying every detail in my head and ready to call them out the second they disrespect me again. If someone gives me attitude, this gets loud fast.",
+  'VIP': "I was told the owner expects me tonight, and I'm not used to waiting outside like everyone else. My schedule is tight and I only came because this visit matters for a deal and for appearances. People around me usually move quickly when my name is involved, so delays read like incompetence. I want this handled efficiently and without unnecessary questions.",
+  'Food Critic': "I'm here off the record, dressed plainly, and nobody should know who I am yet. I always judge the experience from the door onward because service culture starts before the first plate arrives. I'm mentally noting tone, speed, consistency, and whether staff respect guests under pressure. One careless interaction tonight could define my whole review.",
+  'Lost Tourist': "I followed a map pin and ended up here instead of the place I was trying to find. My phone battery is almost dead, I'm in a part of town I don't know, and I feel stupid for getting this mixed up. I don't want trouble, I just need directions and maybe a safe place to sit for a minute. I'm trying to stay polite so people don't dismiss me.",
+  'Drunk Regular': "I've been drinking since early evening and I know I'm buzzed, but I keep telling myself I'm still in control. I come here often enough that I expect the door to wave me through, and that confidence gets louder with every drink. I had a rough day and this is where I numb it out, even if I become a problem. If someone challenges me too hard, I can turn defensive quickly.",
+  'Health Inspector': "I received a complaint that needs follow-up, and tonight's visit is part of an official inspection cycle. I don't care about status, excuses, or how busy the place is; I care about compliance and risk. I've seen operators hide problems behind charm, so I stay direct and procedural. If they block access without cause, that becomes its own violation.",
+  'Celebrity in Disguise': "I dressed down on purpose because I need one night where nobody treats me like a spectacle. Every time I'm recognized, the room changes and I stop being a person and become content. I chose this place hoping for anonymity, quiet, and normal conversation. If someone starts probing too much, I will shut down and leave.",
+  'Rival Chef': "I told my team I was taking the night off, but I'm actually here to study this place up close. Their menu execution has been stealing attention in my district, and I need to understand exactly why. I have a harmless cover story ready, but I'm scanning for supplier clues, prep rhythm, and signature techniques. If I get in, I walk out with competitive intelligence.",
+  'Nervous First Date': "This date matters more than I want to admit because it's the first one I've felt hopeful about in a long time. I picked this restaurant carefully to make a good impression and prove I can plan something thoughtful. I'm overthinking every detail, from my clothes to what I'll say in the first five minutes. If this falls apart at the door, the whole night collapses.",
+  'Suspicious Character': "I'm pretending this is just dinner, but I have another objective inside and I can't afford extra attention. I already mapped my timing and who I need to avoid, so delays at the entrance are dangerous for me. I keep my answers short because the more I talk, the more likely I slip. If they pressure me too hard, I'll pivot or bluff.",
+  'Local Politician': "I didn't come for food; I came to secure leverage before a licensing vote. This restaurant's owners need my office, and I need their public support in the district. Every interaction tonight is political theater, including how staff treat me at the door. If they disrespect me, it becomes a message to everyone watching.",
+  'Picky Eater': "I read menus like contracts and I notice every inconsistency, every ingredient shortcut, every hygiene red flag. I've had enough bad dining experiences to walk in already skeptical and prepared to complain if standards slip. I ask precise questions because I don't trust vague reassurances. If they handle me well, I'm fair, but one sloppy answer and I become relentless.",
+  'Dine and Dasher': "I've done this before: look calm, order strategically, and disappear before the check lands. I already spotted the exits, blind spots, and the moment shift changes create confusion. The key is to seem harmless and ordinary so nobody remembers me clearly. If I get inside, I don't plan to pay a cent.",
+  'Average Joe': "I finished a long shift and just want a normal meal before heading home. Nothing dramatic is happening in my life tonight, and honestly that's why this place sounded good. I like routines: same neighborhood, same kind of food, same quiet table if possible. I'm tired, polite, and hoping this is simple."
+};
+
 export async function generateCharacter(difficulty: number = 1, excludedArchetypes: Archetype[] = [], guestList: Guest[] = [], forceArchetype?: Archetype): Promise<Character> {
   const model = "gemini-2.5-flash";
   
@@ -104,7 +125,12 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
     - Some IDs should be expired (e.g. 2023, 2024). This is a valid reason to reject.
   - idData.idNumber: Random string like "99.876.543-A".
 
-  BACKSTORY RULES (write 2-3 sentences in first person, internal monologue):
+  BACKSTORY RULES (write 4-6 sentences in first person, internal monologue):
+  - It MUST be clearly tied to the exact archetype.
+  - Include concrete personal facts the character can reuse in conversation (example: occupation, where they came from tonight, specific motive, recent event, relationship detail).
+  - Include one emotional layer (fear, shame, pride, anger, anxiety, etc.).
+  - Include one immediate objective for this exact visit.
+  - Keep facts internally consistent and avoid contradictions.
   - Rushed Family: Why are they in such a rush tonight? Maybe a kid's birthday, anniversary, or babysitter deadline. They're stressed but trying to hold it together.
   - Hungry Poor Person: Why do they need to eat here specifically? What's their situation? They're embarrassed but desperate.
   - Student: What's the occasion? Celebrating something, or just hungry/bored? They're excited but watching their wallet.
@@ -222,7 +248,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       name: { type: Type.STRING },
       gender: { type: Type.STRING, enum: ['Male', 'Female'] },
       visualDescription: { type: Type.STRING },
-      backstory: { type: Type.STRING, description: "A 2-3 sentence internal monologue: who this person is, why they're here tonight, what they're thinking/feeling, and any secret agenda or lie they're planning. Written as if the character is thinking it themselves." },
+      backstory: { type: Type.STRING, description: "A 4-6 sentence internal monologue tied to the archetype with concrete personal facts the character can later reuse consistently in dialogue." },
       wantsToHideName: { type: Type.BOOLEAN, description: "If true, the character is reluctant to give their name." },
       idData: {
         type: Type.OBJECT,
@@ -416,7 +442,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       voiceName,
       ...(fallbackIsImposter ? { isImposter: true } : {}),
       visualDescription: fallbackVisualDescription,
-      backstory: `I'm just here to get inside. I hope the bouncer doesn't ask too many questions.`,
+      backstory: FALLBACK_BACKSTORIES[fallbackArchetype],
       idData: {
           hasID: Math.random() > 0.1,
           refusesID: Math.random() > 0.9,
