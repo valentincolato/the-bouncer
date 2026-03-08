@@ -296,21 +296,20 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
         voiceName = Math.random() > 0.5 ? 'Kore' : 'Zephyr';
     }
 
-    // Enforce imposter rate: if the character's name matches a guest on the list
-    // and they claim a reservation, only keep the groupSize mismatch 10% of the time.
-    // The rest of the time, correct it to match the guest list.
+    // Enforce reservation/group-size consistency locally (not by LLM quality):
+    // if a reservation name matches the guest list, decide mismatch with Math.random.
     let isImposter = false;
     if (data.stats?.isReservation && guestList.length > 0) {
       const matchedGuest = guestList.find(
         g => g.name.toLowerCase().trim() === (data.name || '').toLowerCase().trim()
       );
-      if (matchedGuest && matchedGuest.groupSize !== data.stats.groupSize) {
-        // LLM generated a wrong groupSize — decide if this is intentional imposter (10%) or an error (90%)
-        const isIntentionalImposter = Math.random() < 0.10;
-        if (!isIntentionalImposter) {
-          data.stats.groupSize = matchedGuest.groupSize;
+      if (matchedGuest) {
+        isImposter = Math.random() < 0.10;
+        if (isImposter) {
+          const possibleGroupSizes = [1, 2, 3, 4, 5, 6].filter(size => size !== matchedGuest.groupSize);
+          data.stats.groupSize = possibleGroupSizes[Math.floor(Math.random() * possibleGroupSizes.length)];
         } else {
-          isImposter = true;
+          data.stats.groupSize = matchedGuest.groupSize;
         }
       }
     }
@@ -341,11 +340,13 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
     // Fallback: Pick from guest list 30% of the time to ensure some matches
     const useGuestList = Math.random() < 0.3 && guestList.length > 0;
     let name, gender;
+    let fallbackGuestGroupSize: number | null = null;
     
     if (useGuestList) {
         const guest = guestList[Math.floor(Math.random() * guestList.length)];
         name = guest.name;
         gender = guest.gender;
+        fallbackGuestGroupSize = guest.groupSize;
     } else {
         const MALE_NAMES = ['James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Joseph', 'Thomas', 'Charles'];
         const FEMALE_NAMES = ['Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen'];
@@ -377,12 +378,25 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       fallbackVisualDescriptions[fallbackArchetype] ||
       `A person who looks like a ${fallbackArchetype.toLowerCase()}.`;
 
+    let fallbackIsImposter = false;
+    let fallbackGroupSize = Math.floor(Math.random() * 4) + 1;
+    if (useGuestList && fallbackGuestGroupSize !== null) {
+      fallbackIsImposter = Math.random() < 0.10;
+      if (fallbackIsImposter) {
+        const possibleGroupSizes = [1, 2, 3, 4, 5, 6].filter(size => size !== fallbackGuestGroupSize);
+        fallbackGroupSize = possibleGroupSizes[Math.floor(Math.random() * possibleGroupSizes.length)];
+      } else {
+        fallbackGroupSize = fallbackGuestGroupSize;
+      }
+    }
+
     return {
       id: `fallback-${Date.now()}`,
       name,
       archetype: fallbackArchetype,
       gender,
       voiceName,
+      ...(fallbackIsImposter ? { isImposter: true } : {}),
       visualDescription: fallbackVisualDescription,
       backstory: `I'm just here to get inside. I hope the bouncer doesn't ask too many questions.`,
       idData: {
@@ -395,7 +409,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       },
       stats: {
         budget: Math.random() > 0.5 ? "Medium" : "Low",
-        groupSize: Math.floor(Math.random() * 4) + 1,
+        groupSize: fallbackGroupSize,
         mood: "Neutral",
         isReservation: useGuestList // If we picked from guest list, they have a reservation
       },
