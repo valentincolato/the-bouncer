@@ -398,7 +398,22 @@ export default function Game() {
       }
   };
 
-  const handleSkipIntro = () => {
+  const handleStartGame = async () => {
+    try {
+      // Request microphone permission on first user interaction
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+
+      if (!playerRef.current) {
+        playerRef.current = new AudioPlayer();
+      }
+      // Force resume the context immediately on user gesture
+      await playerRef.current.initialize();
+    } catch (e) {
+      console.error("Initial microphone permission request failed:", e);
+    }
+
+    setHasInteracted(true);
     setShowIntro(false);
   };
 
@@ -1100,47 +1115,7 @@ INSTRUCTIONS:
     }
   };
 
-  if (!hasInteracted) {
-      return (
-          <div 
-            className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white font-display cursor-pointer relative overflow-hidden" 
-            onClick={async () => {
-                try {
-                    // Request microphone permission on first user interaction
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    stream.getTracks().forEach(track => track.stop());
-                    
-                    if (!playerRef.current) {
-                        playerRef.current = new AudioPlayer();
-                    }
-                    // Force resume the context immediately on user gesture
-                    await playerRef.current.initialize();
-                } catch (e) {
-                    console.error("Initial microphone permission request failed:", e);
-                }
-                setHasInteracted(true);
-            }}
-          >
-              <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: 'radial-gradient(#333 2px, transparent 2px)', backgroundSize: '30px 30px' }}></div>
-              
-              <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="text-center z-10 p-8 border-4 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] bg-zinc-900"
-              >
-                  <h1 className="text-6xl font-bold uppercase tracking-widest text-red-600 mb-2 transform -rotate-2">The Bouncer</h1>
-                  <p className="text-xl font-sans text-zinc-400 mb-8 tracking-wider">A Restaurant Management Simulator</p>
-                  
-                  <div className="inline-block bg-white text-black px-8 py-3 font-bold uppercase tracking-widest animate-pulse">
-                      Click to Start
-                  </div>
-              </motion.div>
-          </div>
-      );
-  }
-
-  if (showIntro) {
+  if (!hasInteracted || showIntro) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900 text-white font-display p-4 relative overflow-hidden">
              {/* Background Ambience */}
@@ -1168,7 +1143,7 @@ INSTRUCTIONS:
                 </div>
 
                 <button 
-                    onClick={handleSkipIntro}
+                    onClick={handleStartGame}
                     className="flex items-center gap-2 px-8 py-4 bg-white text-black font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-colors border-4 border-transparent hover:border-white"
                 >
                     <SkipForward className="w-6 h-6" />
