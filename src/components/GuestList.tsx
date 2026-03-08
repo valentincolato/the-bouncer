@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Guest } from '@/types';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,10 @@ interface GuestListSVGProps {
 
 export function GuestListSVG({ guests, onClose, className, onClick }: GuestListSVGProps) {
     const [checkedGuests, setCheckedGuests] = useState<Set<number>>(new Set());
+    
+    useEffect(() => {
+        setCheckedGuests(new Set());
+    }, [guests]);
 
     const toggleGuest = (index: number) => {
         const newChecked = new Set(checkedGuests);
