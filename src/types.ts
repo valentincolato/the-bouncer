@@ -27,9 +27,12 @@ export interface Character {
   visualDescription: string;
   backstory: string;
   imageUrl?: string;
-  wantsToHideName?: boolean; // New field
-  isNameRevealed?: boolean; // New field
-  isInspector?: boolean; // New field
+  wantsToHideName?: boolean;
+  isNameRevealed?: boolean;
+  isInspector?: boolean;
+  isImposter?: boolean;
+  isDisplacedGuest?: boolean;   // The real person whose reservation was stolen by an imposter
+  imposterDecision?: 'allow' | 'reject'; // What the bouncer did to the imposter
   idData: {
     hasID: boolean;
     refusesID: boolean;

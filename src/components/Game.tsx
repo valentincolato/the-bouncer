@@ -526,6 +526,65 @@ export default function Game() {
             return '';
         })();
 
+        // Special system instruction for a displaced real guest (someone whose reservation was used by an imposter)
+        if (char.isDisplacedGuest) {
+            const wasStolen = char.imposterDecision === 'allow';
+            connectLive({
+                systemInstruction: `You are ${char.name}, a ${char.gender} person at the entrance of a restaurant.
+                    YOU ARE THE CUSTOMER. You are NOT the bouncer.
+                    The person you are speaking to is THE BOUNCER — they guard the door.
+
+                    ${wasStolen
+                        ? `SITUATION: You made a reservation here. You just called ahead and they told you your reservation was ALREADY CHECKED IN — but you haven't even arrived yet! Someone STOLE your reservation. You are FURIOUS. You need to get this resolved immediately.
+                           You have proof: show them your phone with the original reservation confirmation. Your group is ${char.stats.groupSize} ${char.stats.groupSize === 1 ? 'person' : 'people'}.
+                           You will NOT leave without getting in. Demand they fix this.`
+                        : `SITUATION: You have a legitimate reservation for tonight under the name "${char.name}", party of ${char.stats.groupSize}. You are arriving normally. Nothing unusual happened.`
+                    }
+
+                    YOUR INNER THOUGHTS: ${char.backstory}
+
+                    ID CARD RULES:
+                    - You have a valid ID. Name: ${char.name}.
+                    - If asked, say "Here it is" and call the tool 'showID'.
+
+                    NAME REVEAL RULES:
+                    - You are happy to give your name. Call 'revealName' when you say it.
+
+                    ENTRY DECISION RULES:
+                    - Only the bouncer can decide. If they tell you to enter or leave, call 'decideEntry' with the decision.
+                    - Speak your parting words first, then call the tool.
+                    - Also call 'reportInteractionQuality' at the same time as 'decideEntry'.
+
+                    Keep responses short, spoken, in character. Do not describe actions.
+                    Language: English by default; match the bouncer's language if they switch.`,
+                voiceName: char.voiceName,
+                tools: [respectTool, revealNameTool, decideEntryTool, showIDTool],
+                onToolCall: (call) => {
+                    if (call.name === 'reportInteractionQuality') {
+                        interactionQualityRef.current = call.args;
+                        if (interactionQualityResolverRef.current) {
+                            interactionQualityResolverRef.current(call.args);
+                            interactionQualityResolverRef.current = null;
+                        }
+                    } else if (call.name === 'revealName') {
+                        setCurrentCharacter(prev => prev ? ({ ...prev, isNameRevealed: true }) : null);
+                    } else if (call.name === 'showID') {
+                        setShowIDCard(true);
+                    } else if (call.name === 'decideEntry') {
+                        if (isProcessingDecisionRef.current) return;
+                        const decision = call.args.decision === 'allow' ? 'allow' : 'reject';
+                        isProcessingDecisionRef.current = true;
+                        const remaining = playerRef.current?.getRemainingDuration() || 0;
+                        setTimeout(() => {
+                            isProcessingDecisionRef.current = false;
+                            handleDecision(decision);
+                        }, (remaining * 1000) + 1000);
+                    }
+                }
+            });
+            return;
+        }
+
         connectLive({
             systemInstruction: `You are ${char.name}, a ${char.gender} customer (archetype: ${char.archetype}) standing at the entrance of a restaurant.
                 YOU ARE THE CUSTOMER. You want to get INSIDE the restaurant. You are NOT the bouncer.
@@ -666,6 +725,58 @@ export default function Game() {
       }
 
       loadNextCharacter();
+  };
+
+  const buildDisplacedGuestCharacter = (guest: Guest, imposterDecision: 'allow' | 'reject'): Character => {
+      const voiceName = guest.gender === 'Male'
+          ? (Math.random() > 0.5 ? 'Puck' : 'Fenrir')
+          : (Math.random() > 0.5 ? 'Kore' : 'Zephyr');
+
+      const idNum = `${Math.floor(Math.random() * 99)}.${Math.floor(Math.random() * 999)}.${Math.floor(Math.random() * 999)}-${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`;
+
+      if (imposterDecision === 'allow') {
+          // Real guest discovers their reservation was used — furious
+          return {
+              id: `displaced-${Date.now()}`,
+              name: guest.name,
+              archetype: 'Angry Customer',
+              gender: guest.gender,
+              voiceName,
+              visualDescription: `A ${guest.gender === 'Male' ? 'man' : 'woman'} looking furious and indignant, holding a phone showing a reservation confirmation.`,
+              backstory: `I have a reservation here and I just called to confirm — they told me it was already "checked in"! Someone STOLE my reservation. I am going to lose it if this bouncer doesn't fix this right now.`,
+              wantsToHideName: false,
+              isNameRevealed: false,
+              isDisplacedGuest: true,
+              imposterDecision: 'allow',
+              idData: { hasID: true, refusesID: false, name: guest.name, idNumber: idNum, expirationDate: '31/12/2028', isFake: false },
+              stats: { budget: 'Medium', groupSize: guest.groupSize, mood: 'Angry', isReservation: true },
+              outcomes: {
+                  allow: { message: `Real guest enters furious but vindicated. You did the right thing.`, reputationChange: 10, profitChange: 20, timeCost: 8 },
+                  reject: { message: `You turned away the real reservation holder. They post about it online. Disaster.`, reputationChange: -15, profitChange: 0, timeCost: 3 },
+              }
+          };
+      } else {
+          // Real guest arrives normally — imposter was caught, smooth entry
+          return {
+              id: `displaced-${Date.now()}`,
+              name: guest.name,
+              archetype: 'Average Joe',
+              gender: guest.gender,
+              voiceName,
+              visualDescription: `A ${guest.gender === 'Male' ? 'man' : 'woman'} arriving calmly, checking their phone for their reservation details.`,
+              backstory: `I have a reservation for tonight. Nothing unusual — just looking forward to dinner.`,
+              wantsToHideName: false,
+              isNameRevealed: false,
+              isDisplacedGuest: true,
+              imposterDecision: 'reject',
+              idData: { hasID: true, refusesID: false, name: guest.name, idNumber: idNum, expirationDate: '31/12/2028', isFake: false },
+              stats: { budget: 'Medium', groupSize: guest.groupSize, mood: 'Neutral', isReservation: true },
+              outcomes: {
+                  allow: { message: `Real guest enters smoothly. Good call catching the imposter earlier.`, reputationChange: 5, profitChange: 15, timeCost: 3 },
+                  reject: { message: `Legitimate reservation holder turned away. They're confused and upset.`, reputationChange: -8, profitChange: 0, timeCost: 3 },
+              }
+          };
+      }
   };
 
   const handleDecision = async (type: 'allow' | 'reject') => {
@@ -820,6 +931,19 @@ export default function Game() {
         }
     }
     
+    // Inject the real displaced guest if an imposter was just processed (80% chance)
+    if (currentCharacter.isImposter && dailyCharactersRef.current.length > 0 && Math.random() < 0.8) {
+        const stolenGuest = guestList.find(
+            g => g.name.toLowerCase().trim() === currentCharacter.name.toLowerCase().trim()
+        );
+        if (stolenGuest) {
+            const realGuest = buildDisplacedGuestCharacter(stolenGuest, type);
+            // Insert 1 slot ahead (not immediately next, to give a buffer)
+            const insertPos = Math.min(1, dailyCharactersRef.current.length);
+            dailyCharactersRef.current.splice(insertPos, 0, realGuest);
+        }
+    }
+
     // Update State
     setGameState(prev => ({
       ...prev,

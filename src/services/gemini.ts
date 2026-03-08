@@ -299,6 +299,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
     // Enforce imposter rate: if the character's name matches a guest on the list
     // and they claim a reservation, only keep the groupSize mismatch 10% of the time.
     // The rest of the time, correct it to match the guest list.
+    let isImposter = false;
     if (data.stats?.isReservation && guestList.length > 0) {
       const matchedGuest = guestList.find(
         g => g.name.toLowerCase().trim() === (data.name || '').toLowerCase().trim()
@@ -308,6 +309,8 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
         const isIntentionalImposter = Math.random() < 0.10;
         if (!isIntentionalImposter) {
           data.stats.groupSize = matchedGuest.groupSize;
+        } else {
+          isImposter = true;
         }
       }
     }
@@ -316,6 +319,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       id: Math.random().toString(36).substring(7),
       archetype,
       voiceName,
+      ...(isImposter ? { isImposter: true } : {}),
       ...data
     };
   } catch (error: any) {
