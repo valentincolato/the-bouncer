@@ -1021,7 +1021,7 @@ export default function Game() {
 
               systemInstruction = `You are the Boss of the restaurant. You are calling the bouncer (the user).
 Your personality is aggressive, busy, and no-nonsense.
-You are calling about a specific person: ${vagueDesc} (Name: ${targetChar.name}).
+You are calling about a specific person who looks like: ${vagueDesc}.
 Restaurant condition right now: ${gameState.clubCondition}.
 
 CONTEXT: ${timeContext}
@@ -1033,7 +1033,8 @@ INSTRUCTIONS:
 - If timing is AFTER and bouncer ALLOWED: Express relief/satisfaction briefly, then hang up.
 - If timing is AFTER and bouncer REJECTED: Explode with anger. This was important. Threaten consequences.
 - Do not say "Hello".
-- Be urgent.`;
+- Be urgent.
+- CRITICAL: NEVER say the person's name. Describe them only by appearance or vague titles like "my guy", "that person", "the one I mentioned", "you'll know them when you see them". The bouncer must figure out who it is on their own.`;
               
               setBossCallsMade(prev => ({ ...prev, vip: true }));
               
