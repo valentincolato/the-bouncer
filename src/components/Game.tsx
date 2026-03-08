@@ -5,8 +5,8 @@ import { HUD } from '@/components/HUD';
 import { Phone } from '@/components/Phone';
 import { GuestList, GuestListSVG } from '@/components/GuestList';
 import { IDCardSVG } from '@/components/IDCardSVG';
-import { Character, GameState, INITIAL_STATE, Outcome, Guest } from '@/types';
-import { generateCharacter, generateCharacterImage, generateTTS, generateBossCall, generateVagueDescription, generateBossScolding, generateBossFiredCall, generateBossAdvice, generateDailyCustomers, generateBossPoliticianCall, generateBossFamilyCall, generateBossInspectionAdvice } from '@/services/gemini';
+import { Character, GameState, INITIAL_STATE, Outcome, Guest, Archetype } from '@/types';
+import { generateBossCall, generateVagueDescription, generateBossScolding, generateBossFiredCall, generateBossAdvice, generateDailyCustomers, generateBossPoliticianCall, generateBossFamilyCall, generateBossInspectionAdvice } from '@/services/gemini';
 import { cn } from '@/lib/utils';
 import { Check, X, MoreHorizontal, Mic, MicOff, Loader2, Play, SkipForward, ClipboardList, ArrowLeft, ArrowRight } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, Tool } from "@google/genai";
@@ -298,12 +298,13 @@ export default function Game() {
           setGuestList(initialGuestList);
           
           const isInspection = Math.random() < 0.25;
-          const conditions: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Messy', 'Dirty', 'Filthy'];
-          const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
-          
+          // Day 1 always starts in decent shape
+          const startConditions: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Clean'];
+          const startCondition = startConditions[Math.floor(Math.random() * startConditions.length)];
+
           setGameState(prev => ({
               ...prev,
-              clubCondition: randomCondition,
+              clubCondition: startCondition,
               inspectionScheduled: isInspection
           }));
           
@@ -346,12 +347,13 @@ export default function Game() {
       setLoading(true);
       
       const isInspection = Math.random() < 0.25;
-      const conditions: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Messy', 'Dirty', 'Filthy'];
-      const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
+      // Day 1 always starts in decent shape
+      const startConditions: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Clean'];
+      const startCondition = startConditions[Math.floor(Math.random() * startConditions.length)];
 
       setGameState({
           ...INITIAL_STATE,
-          clubCondition: randomCondition,
+          clubCondition: startCondition,
           inspectionScheduled: isInspection
       });
       setOutcome(null);
@@ -508,6 +510,9 @@ export default function Game() {
                 You are here with ${char.stats.groupSize} ${char.stats.groupSize === 1 ? 'person (just yourself)' : 'people total (including yourself)'}.
                 ${char.stats.isReservation ? `You have a reservation under the name "${char.name}". Mention it naturally if asked or if you think it helps.` : 'You do NOT have a reservation.'}
                 ${char.isInspector ? 'You are a Health Inspector on official duty. You have the legal right to enter. Be firm and professional. Show your official badge if asked.' : ''}
+
+                YOUR INNER THOUGHTS (use this to stay in character — do NOT say this out loud verbatim, but let it guide everything you say):
+                ${char.backstory}
                 Reluctant to reveal name: ${char.wantsToHideName ? "YES" : "NO"}.
 
                 VOICE INSTRUCTION: Speak with a tone that matches your mood (${char.stats.mood}).
@@ -588,8 +593,11 @@ export default function Game() {
       const newProfit = gameState.profit - gameState.rentCost;
 
       const isInspection = Math.random() < 0.25;
-      const conditions: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Messy', 'Dirty', 'Filthy'];
-      const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
+
+      // Overnight cleaning: improve condition by 1 step (staff cleans up after closing)
+      const CONDITIONS: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Messy', 'Dirty', 'Filthy'];
+      const currentIndex = CONDITIONS.indexOf(gameState.clubCondition);
+      const nextCondition = CONDITIONS[Math.max(0, currentIndex - 1)];
 
       // Eviction check: can't pay rent
       if (newProfit < 0) {
@@ -603,7 +611,7 @@ export default function Game() {
           customersServed: 0,
           timeLeft: 240,
           profit: newProfit, // Deduct rent
-          clubCondition: randomCondition,
+          clubCondition: nextCondition,
           inspectionScheduled: isInspection
       }));
       
@@ -693,6 +701,40 @@ export default function Game() {
         }
     }
 
+    // --- CONDITION LOGIC ---
+    const CONDITIONS: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Messy', 'Dirty', 'Filthy'];
+    const conditionIndex = CONDITIONS.indexOf(gameState.clubCondition);
+
+    // Archetypes that worsen condition when allowed in
+    const MESSY_ARCHETYPES: Archetype[] = ['Drunk Regular', 'Angry Customer', 'Suspicious Character', 'Dine and Dasher', 'Rival Chef'];
+    // Archetypes that worsen by 2 steps (very destructive)
+    const VERY_MESSY_ARCHETYPES: Archetype[] = ['Drunk Regular', 'Angry Customer'];
+
+    let conditionDelta = 0;
+    if (type === 'allow') {
+        if (VERY_MESSY_ARCHETYPES.includes(currentCharacter.archetype)) conditionDelta = 2;
+        else if (MESSY_ARCHETYPES.includes(currentCharacter.archetype)) conditionDelta = 1;
+    } else if (type === 'reject') {
+        // Rejecting troublemakers keeps the place clean — no delta needed
+    }
+
+    const newConditionIndex = Math.min(CONDITIONS.length - 1, conditionIndex + conditionDelta);
+    const newClubCondition = CONDITIONS[newConditionIndex];
+
+    // --- INSPECTOR OVERRIDE ---
+    // Replace LLM-generated outcome with real condition-based consequence
+    if (currentCharacter.isInspector && type === 'allow') {
+        const inspectionOutcomes: Record<GameState['clubCondition'], { rep: number; msg: string }> = {
+            'Pristine': { rep: 20,  msg: 'The inspector was impressed. Excellent review!' },
+            'Clean':    { rep: 10,  msg: 'The inspector was satisfied. Good standing.' },
+            'Messy':    { rep: -8,  msg: 'The inspector noted several issues. Warning issued.' },
+            'Dirty':    { rep: -18, msg: 'The inspector filed a formal complaint. Big fine.' },
+            'Filthy':   { rep: -30, msg: 'The inspector ordered a shutdown. Catastrophic.' },
+        };
+        const inspRes = inspectionOutcomes[gameState.clubCondition];
+        result = { ...result, reputationChange: inspRes.rep, message: inspRes.msg };
+    }
+
     // Apply Bonuses
     const finalResult = {
         ...result,
@@ -756,6 +798,7 @@ export default function Game() {
       profit: prev.profit + finalResult.profitChange,
       timeLeft: newTimeLeft,
       customersServed: newCustomersServed,
+      clubCondition: newClubCondition,
       history: [...prev.history, `Decided to ${type} ${currentCharacter.name}: ${finalResult.message}`]
     }));
 

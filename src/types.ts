@@ -22,10 +22,11 @@ export interface Character {
   id: string;
   name: string;
   archetype: Archetype;
-  gender: 'Male' | 'Female' | 'Non-binary'; // New field
-  voiceName: string; // New field for TTS/Live API
+  gender: 'Male' | 'Female' | 'Non-binary';
+  voiceName: string;
   visualDescription: string;
-  imageUrl?: string; // New field
+  backstory: string;
+  imageUrl?: string;
   wantsToHideName?: boolean; // New field
   isNameRevealed?: boolean; // New field
   isInspector?: boolean; // New field

@@ -88,6 +88,26 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
     - Some IDs should be expired (e.g. 2023, 2024). This is a valid reason to reject.
   - idData.idNumber: Random string like "99.876.543-A".
 
+  BACKSTORY RULES (write 2-3 sentences in first person, internal monologue):
+  - Rushed Family: Why are they in such a rush tonight? Maybe a kid's birthday, anniversary, or babysitter deadline. They're stressed but trying to hold it together.
+  - Hungry Poor Person: Why do they need to eat here specifically? What's their situation? They're embarrassed but desperate.
+  - Student: What's the occasion? Celebrating something, or just hungry/bored? They're excited but watching their wallet.
+  - Influencer: What content angle are they pitching themselves? They expect VIP treatment and will make a scene if they don't get it.
+  - Angry Customer: What specific past grievance are they coming back for? They have a story, possibly exaggerated.
+  - VIP: Who are they connected to and why does it matter tonight? They're impatient and used to doors opening for them.
+  - Food Critic: They're undercover. They're cataloging everything about this place. They must NOT reveal their identity no matter what.
+  - Lost Tourist: Where did they think they were going? What country are they from? They're confused and a little embarrassed.
+  - Drunk Regular: How long have they been drinking? What happened earlier tonight? They think they're totally fine.
+  - Health Inspector: What triggered this inspection — a complaint, routine check? They're professional but have seen it all.
+  - Celebrity in Disguise: Who are they and why do they desperately want anonymity tonight? They're tired of being recognized.
+  - Rival Chef: What specific secret are they trying to steal — recipes, suppliers, techniques? They have a cover story ready.
+  - Nervous First Date: This is a big deal for them. Who asked whom? What's riding on tonight going well?
+  - Suspicious Character: What are they actually planning to do inside? They have a specific target or goal they're hiding.
+  - Local Politician: What favor do they need from this restaurant or its owner? They're here for business, not dinner.
+  - Picky Eater: What specific dietary restriction or complaint are they ready to unleash? They've already mentally written their review.
+  - Dine and Dasher: How do they plan to escape without paying? Do they have a partner, an exit strategy? They're calm because they've done this before.
+  - Average Joe: What's their mundane reason for being here tonight? Nothing special — just a person wanting a meal.
+
   Provide the response in JSON format matching the schema.
   The visual description should be a short string describing their appearance (e.g. "A tired man in a suit holding a crying baby").
 
@@ -186,6 +206,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       name: { type: Type.STRING },
       gender: { type: Type.STRING, enum: ['Male', 'Female'] },
       visualDescription: { type: Type.STRING },
+      backstory: { type: Type.STRING, description: "A 2-3 sentence internal monologue: who this person is, why they're here tonight, what they're thinking/feeling, and any secret agenda or lie they're planning. Written as if the character is thinking it themselves." },
       wantsToHideName: { type: Type.BOOLEAN, description: "If true, the character is reluctant to give their name." },
       idData: {
         type: Type.OBJECT,
@@ -246,7 +267,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
         required: ['allow', 'reject']
       }
     },
-    required: ['name', 'gender', 'visualDescription', 'stats', 'outcomes', 'idData']
+    required: ['name', 'gender', 'visualDescription', 'backstory', 'stats', 'outcomes', 'idData']
   };
 
   try {
@@ -327,6 +348,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
       gender,
       voiceName,
       visualDescription: `A ${fallbackArchetype.toLowerCase()} looking person.`,
+      backstory: `I'm just here to get inside. I hope the bouncer doesn't ask too many questions.`,
       idData: {
           hasID: Math.random() > 0.1,
           refusesID: Math.random() > 0.9,
@@ -461,13 +483,16 @@ export async function generateDailyCustomers(day: number, guestList: Guest[], in
 export async function generateCharacterImage(visualDescription: string): Promise<string> {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-2.0-flash-preview-image-generation',
       contents: {
         parts: [
           {
             text: `A comic book style portrait of a character matching this description: ${visualDescription}. Thick black lines, vibrant colors, flat shading, american comic book style. White background.`,
           },
         ],
+      },
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
       },
     });
 
