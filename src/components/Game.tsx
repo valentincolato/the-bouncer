@@ -40,7 +40,7 @@ const hangUpTool: Tool = {
 const decideEntryTool: Tool = {
     functionDeclarations: [{
         name: "decideEntry",
-        description: "Call this tool ONLY when the user (the bouncer) explicitly tells you that you can enter (e.g. 'you can go in', 'allow') or that you must leave (e.g. 'get out', 'reject'). Do NOT call this tool on your own. You MUST wait for the user to make a decision. IMPORTANT: Speak your parting words out loud FIRST, and then call this tool.",
+        description: "Call this tool ONLY when the bouncer has made a clear, unambiguous final decision — either granting entry (e.g. 'you can go in', 'welcome, go ahead', 'you're in') or denying it (e.g. 'get out', 'you're not getting in', 'I'm rejecting you', 'leave'). Do NOT call this if the bouncer is still asking questions, seems uncertain, or hasn't said anything decisive. Asking about your ID, your name, or your reservation is NOT a decision. Silence or hesitation is NOT a decision. You MUST wait for an explicit verbal decision from the bouncer before calling this tool. IMPORTANT: Speak your parting words out loud FIRST, and then call this tool.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -551,8 +551,10 @@ export default function Game() {
                     - You are happy to give your name. Call 'revealName' when you say it.
 
                     ENTRY DECISION RULES:
-                    - Only the bouncer can decide. If they tell you to enter or leave, call 'decideEntry' with the decision.
-                    - Speak your parting words first, then call the tool.
+                    - ONLY the bouncer can decide if you enter or leave. You CANNOT decide on your own.
+                    - Call 'decideEntry' ONLY when the bouncer has made a clear, unambiguous verbal decision: e.g. "you can go in", "go ahead", "welcome", "get out", "you're rejected", "leave now".
+                    - Do NOT call 'decideEntry' if the bouncer is asking questions, checking your ID, or hasn't explicitly stated a final decision. Questions are NOT decisions. Silence is NOT a decision.
+                    - Speak your parting words out loud FIRST, then call the tool.
                     - Also call 'reportInteractionQuality' at the same time as 'decideEntry'.
 
                     Keep responses short, spoken, in character. Do not describe actions.
@@ -634,8 +636,8 @@ export default function Game() {
 
                 ENTRY DECISION RULES:
                 - You CANNOT decide if you enter or not. ONLY the bouncer (the user) can decide.
-                - If the bouncer explicitly tells you that you can enter (e.g., "you can pass", "go ahead") or that you must leave (e.g., "get out", "you are rejected"), you MUST call the tool 'decideEntry'.
-                - Do NOT call 'decideEntry' if the bouncer is just asking questions or hasn't made a final decision.
+                - Call 'decideEntry' ONLY when the bouncer has made a clear, unambiguous, final verbal decision: e.g. "you can pass", "go ahead", "welcome in", "you're in" (allow) — or "get out", "leave", "you're rejected", "I'm not letting you in" (reject).
+                - Do NOT call 'decideEntry' if the bouncer is asking questions, checking your ID, asking your name, or hasn't explicitly stated a final verdict. Asking for information is NOT a decision. Silence or hesitation is NOT a decision.
                 - When calling 'decideEntry', provide the decision ('allow' or 'reject'). Speak your parting words out loud before calling the tool.
                 - IMPORTANT: When calling 'decideEntry', you MUST also call 'reportInteractionQuality' in the same turn.
 
