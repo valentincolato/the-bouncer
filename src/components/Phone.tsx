@@ -9,7 +9,6 @@ interface PhoneProps {
   onHangup: () => void;
   onCallBoss?: () => void;
   callerName?: string;
-  message?: string; // If we want to show subtitles
 }
 
 function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS" }: PhoneProps) {
@@ -280,18 +279,17 @@ function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS
   );
 }
 
-export function Phone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS", message }: PhoneProps) {
+export function Phone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS" }: PhoneProps) {
   return (
     <>
       {/* Desktop Version */}
       <div className="hidden md:block">
-        <ComicPhone 
-          status={status} 
-          onAnswer={onAnswer} 
-          onHangup={onHangup} 
+        <ComicPhone
+          status={status}
+          onAnswer={onAnswer}
+          onHangup={onHangup}
           onCallBoss={onCallBoss}
           callerName={callerName}
-          message={message}
         />
       </div>
 

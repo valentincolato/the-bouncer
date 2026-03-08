@@ -642,7 +642,3 @@ export async function generateTTS(text: string, voiceName: string = "Charon"): P
   }
 }
 
-// Deprecated wrapper for backward compatibility if needed, but we will update usage.
-export async function generateIntroAudio(text: string): Promise<{ data: string, mimeType: string } | null> {
-    return generateTTS(text, "Charon");
-}

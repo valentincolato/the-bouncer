@@ -150,9 +150,7 @@ export default function Game() {
   const [isInterrogating, setIsInterrogating] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
-  const [introAudioPlaying, setIntroAudioPlaying] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const [lastCustomerOutcome, setLastCustomerOutcome] = useState<Outcome | null>(null);
   const [tutorialStep, setTutorialStep] = useState<'ASK_NAME' | 'CHECK_LIST' | 'BOSS_WARNING' | 'DONE'>(
     INITIAL_STATE.currentDay === 1 && INITIAL_STATE.customersServed === 0 ? 'ASK_NAME' : 'DONE'
   );
@@ -168,9 +166,6 @@ export default function Game() {
   const [showIDCard, setShowIDCard] = useState(false);
   const [idCardOpen, setIdCardOpen] = useState(false);
 
-  // Track used archetypes for the current day
-  const usedArchetypesRef = useRef<string[]>([]);
-  
   // Live API Refs
   const sessionRef = useRef<any>(null);
   const recorderRef = useRef<AudioRecorder | null>(null);
@@ -198,8 +193,6 @@ export default function Game() {
   const phoneStatus = phoneStatusState;
   const [phoneMessage, setPhoneMessage] = useState<string>('');
   const [bossCallsMade, setBossCallsMade] = useState<{ scolding: boolean, vip: boolean, advice: boolean }>({ scolding: false, vip: false, advice: false });
-  const phoneAudioRef = useRef<HTMLAudioElement | null>(null);
-
   const talkingToRef = useRef<'character' | 'boss' | null>(null);
   const [talkingToState, setTalkingToState] = useState<'character' | 'boss' | null>(null);
   const setTalkingTo = (val: 'character' | 'boss' | null) => {
@@ -375,7 +368,6 @@ export default function Game() {
       dailyCharactersRef.current = [];
       allDailyCharactersRef.current = [];
       autoConnectedCharRef.current = null;
-      usedArchetypesRef.current = [];
       interactionQualityRef.current = null;
       bossScheduleRef.current = {};
       
@@ -486,10 +478,6 @@ export default function Game() {
   const startCharacterInteraction = (char: Character) => {
         setTalkingTo('character');
         
-        // Special instruction for the very first customer of the game
-        let firstLineInstruction = "";
-        // User requested to remove the specific "new guy" remark.
-
         connectLive({
             systemInstruction: `You are roleplaying as ${char.name}, a ${char.gender} ${char.archetype} trying to enter a restaurant.
                 Visuals: ${char.visualDescription}.
@@ -502,8 +490,6 @@ export default function Game() {
                 You are talking to the bouncer.
                 Keep responses short, spoken, and in character. Do not describe your actions, just speak.
                 
-                ${firstLineInstruction}
-
                 NAME REVEAL RULES:
                 - Do NOT say your name immediately.
                 - If 'Reluctant to reveal name' is YES, refuse to give your name at first. Make up excuses or get annoyed. Only reveal it if the bouncer insists or threatens you.
@@ -584,9 +570,7 @@ export default function Game() {
       
       const newGuestList = generateGuestList(10);
       setGuestList(newGuestList); 
-      usedArchetypesRef.current = []; // Reset used archetypes for the new day
       setOutcome(null);
-      setLastCustomerOutcome(null);
       
       setBossCallsMade({ scolding: false, vip: false, advice: false });
       
@@ -672,7 +656,6 @@ export default function Game() {
     const newCustomersServed = gameState.customersServed + 1;
 
     setOutcome(finalResult);
-    setLastCustomerOutcome(finalResult);
     
     const isDayOver = newCustomersServed >= gameState.totalCustomers;
     
@@ -1189,7 +1172,7 @@ INSTRUCTIONS:
                     className="flex items-center gap-2 px-8 py-4 bg-white text-black font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-colors border-4 border-transparent hover:border-white"
                 >
                     <SkipForward className="w-6 h-6" />
-                    {introAudioPlaying ? "Skip Intro" : "Start Shift"}
+                    Start Shift
                 </button>
             </motion.div>
         </div>
@@ -1340,12 +1323,11 @@ INSTRUCTIONS:
       </header>
 
       <Phone 
-        status={phoneStatus} 
-        onAnswer={handleAnswerPhone} 
-        onHangup={handleHangupPhone} 
+        status={phoneStatus}
+        onAnswer={handleAnswerPhone}
+        onHangup={handleHangupPhone}
         onCallBoss={handleCallBoss}
         callerName="BOSS"
-        message={phoneMessage}
       />
 
       {/* Mobile: Standard Button & Modal */}
