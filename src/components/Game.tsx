@@ -180,6 +180,7 @@ export default function Game() {
 
   // Boss Schedule
   const bossScheduleRef = useRef<{ [turn: number]: { type: 'VIP' | 'POLITICIAN' | 'FAMILY', charIndex: number, timing: 'BEFORE' | 'IMMEDIATE' | 'AFTER' } }>({});
+  const isFiredRef = useRef(false);
 
   // Phone State
   const phoneStatusRef = useRef<'idle' | 'ringing' | 'active'>('idle');
@@ -373,6 +374,7 @@ export default function Game() {
       autoConnectedCharRef.current = null;
       interactionQualityRef.current = null;
       bossScheduleRef.current = {};
+      isFiredRef.current = false;
       
       const newGuestList = generateGuestList(10);
       setGuestList(newGuestList);
@@ -495,7 +497,35 @@ export default function Game() {
 
   const startCharacterInteraction = (char: Character) => {
         setTalkingTo('character');
-        
+
+        // --- Derived context for system instruction ---
+        // Imposter detection: name matches someone on guest list but groupSize differs
+        const matchedGuest = guestList.find(
+            g => g.name.toLowerCase().trim() === char.name.toLowerCase().trim()
+        );
+        const isImposter = !!(matchedGuest && char.stats.isReservation && matchedGuest.groupSize !== char.stats.groupSize);
+        const imposterContext = isImposter
+            ? `IMPOSTER RULES: You are pretending to be the real "${char.name}" on the reservation. The list says their party is ${matchedGuest!.groupSize}, but you showed up with ${char.stats.groupSize}. If the bouncer challenges you about the group size, make up a confident excuse (e.g., "The others couldn't make it", "I called ahead to add people"). Stay calm and committed to the lie.`
+            : '';
+
+        // ID name mismatch: the name printed on the ID differs from the spoken name
+        const idName = char.idData?.name || char.name;
+        const idNameMismatch = idName.toLowerCase().trim() !== char.name.toLowerCase().trim();
+        const idNameContext = idNameMismatch
+            ? `IMPORTANT: Your ID shows the name "${idName}", which is DIFFERENT from the name you gave ("${char.name}"). You are aware of this discrepancy. If the bouncer points it out, react appropriately for your character — get nervous, make an excuse, or double down depending on your archetype.`
+            : `Your ID shows your name as "${idName}", which matches what you told the bouncer.`;
+
+        // Expired ID detection (current year is 2026)
+        const expiredIdContext = (() => {
+            const parts = (char.idData?.expirationDate || '').split('/').map(Number);
+            if (parts.length === 3) {
+                const [d, m, y] = parts;
+                const isExpired = y < 2026 || (y === 2026 && m < 3) || (y === 2026 && m === 3 && d < 8);
+                if (isExpired) return `Your ID is EXPIRED (expiration: ${char.idData?.expirationDate}). You know this. If the bouncer notices, react with embarrassment, excuses, or nervousness depending on your character.`;
+            }
+            return '';
+        })();
+
         connectLive({
             systemInstruction: `You are ${char.name}, a ${char.gender} customer (archetype: ${char.archetype}) standing at the entrance of a restaurant.
                 YOU ARE THE CUSTOMER. You want to get INSIDE the restaurant. You are NOT the bouncer.
@@ -508,6 +538,7 @@ export default function Game() {
                 You are here with ${char.stats.groupSize} ${char.stats.groupSize === 1 ? 'person (just yourself)' : 'people total (including yourself)'}.
                 ${char.stats.isReservation ? `You have a reservation under the name "${char.name}". Mention it naturally if asked or if you think it helps.` : 'You do NOT have a reservation.'}
                 ${char.isInspector ? 'You are a Health Inspector on official duty. You have the legal right to enter. Be firm and professional. Show your official badge if asked.' : ''}
+                ${imposterContext}
 
                 YOUR INNER THOUGHTS (use this to stay in character — do NOT say this out loud verbatim, but let it guide everything you say):
                 ${char.backstory}
@@ -534,6 +565,8 @@ export default function Game() {
                 - hasID: ${char.idData?.hasID ? "YES" : "NO (You forgot it)"}.
                 - refusesID: ${char.idData?.refusesID ? "YES (Refuse to show it)" : "NO"}.
                 - ${char.idData?.isFake ? "Your ID is FAKE/FORGED. You know this. If the bouncer scrutinizes it closely, act slightly nervous or try to redirect the conversation." : "Your ID is genuine."}
+                - ${idNameContext}
+                - ${expiredIdContext}
                 - If the bouncer asks for your ID (e.g. "Show me your ID", "ID please"):
                     1. If hasID is NO: Say you forgot it. Apologize or make an excuse. Do NOT call 'showID'.
                     2. If refusesID is YES: Refuse to show it. Say "I don't need to show you anything" or "Do you know who I am?". Do NOT call 'showID'.
@@ -759,7 +792,7 @@ export default function Game() {
         if (scheduleEvent) {
              const targetChar = allDailyCharactersRef.current[scheduleEvent.charIndex];
              if (targetChar) {
-                 triggerBossCall(scheduleEvent.type, targetChar, newReputation, scheduleEvent.timing);
+                 triggerBossCall(scheduleEvent.type, targetChar, newReputation, scheduleEvent.timing, type);
              }
         } else if (!isDayOver) {
             // Force call on Day 1 after 2nd customer (if not scheduled) - ONLY if reputation is low
@@ -829,40 +862,46 @@ export default function Game() {
   };
 
   const triggerBossCall = async (
-      type: 'VIP' | 'SCOLDING' | 'FIRED' | 'ADVICE' | 'POLITICIAN' | 'FAMILY', 
-      targetChar?: Character, 
+      type: 'VIP' | 'SCOLDING' | 'FIRED' | 'ADVICE' | 'POLITICIAN' | 'FAMILY',
+      targetChar?: Character,
       reputationOverride?: number,
-      timing: 'BEFORE' | 'IMMEDIATE' | 'AFTER' = 'IMMEDIATE'
+      timing: 'BEFORE' | 'IMMEDIATE' | 'AFTER' = 'IMMEDIATE',
+      bouncerDecision?: 'allow' | 'reject'
   ) => {
       try {
           let systemInstruction = "";
-          let voice = "Fenrir"; 
-          const currentReputation = reputationOverride !== undefined ? reputationOverride : gameState.reputation; 
+          let voice = "Fenrir";
+          const currentReputation = reputationOverride !== undefined ? reputationOverride : gameState.reputation;
 
           if ((type === 'VIP' || type === 'POLITICIAN' || type === 'FAMILY') && targetChar) {
               const vagueDesc = await generateVagueDescription(targetChar.visualDescription);
               let script = "";
-              
+
               if (type === 'VIP') script = await generateBossCall(vagueDesc);
               else if (type === 'POLITICIAN') script = await generateBossPoliticianCall(vagueDesc);
-              else if (type === 'FAMILY') script = await generateBossFamilyCall(targetChar.name);
+              else if (type === 'FAMILY') script = await generateBossFamilyCall(vagueDesc);
 
               let timeContext = "";
               if (timing === 'BEFORE') timeContext = "The person hasn't arrived yet. They will be there soon. Warn the bouncer to be ready.";
               else if (timing === 'IMMEDIATE') timeContext = "The person is there RIGHT NOW (or next in line). Tell the bouncer to let them in.";
-              else if (timing === 'AFTER') timeContext = "The person JUST LEFT. You are checking if the bouncer let them in. If they did, good. If not, get angry.";
+              else if (timing === 'AFTER') {
+                  const wasAllowed = bouncerDecision === 'allow';
+                  timeContext = `The person JUST LEFT. The bouncer ${wasAllowed ? 'ALLOWED them in' : 'REJECTED them'}. ${wasAllowed ? 'Express relief or approval — they did the right thing.' : 'You are FURIOUS. They turned away someone important. Yell at the bouncer.'}`;
+              }
 
               systemInstruction = `You are the Boss of the restaurant. You are calling the bouncer (the user).
 Your personality is aggressive, busy, and no-nonsense.
 You are calling about a specific person: ${vagueDesc} (Name: ${targetChar.name}).
+Restaurant condition right now: ${gameState.clubCondition}.
 
 CONTEXT: ${timeContext}
 
 YOUR ORDER/MESSAGE: "${script}"
 
 INSTRUCTIONS:
-- If timing is BEFORE/IMMEDIATE: Shout the order.
-- If timing is AFTER: Ask if they let the person in. "Did you let that guy in? The one with ${vagueDesc}?"
+- If timing is BEFORE/IMMEDIATE: Shout the order. Make it clear they MUST let this person in.
+- If timing is AFTER and bouncer ALLOWED: Express relief/satisfaction briefly, then hang up.
+- If timing is AFTER and bouncer REJECTED: Explode with anger. This was important. Threaten consequences.
 - Do not say "Hello".
 - Be urgent.`;
               
@@ -891,7 +930,7 @@ YOUR MESSAGE: "${script}"
 When the bouncer picks up, deliver this news immediately.
 There is no negotiation. They are done.
 Tell them to get out.`;
-              // We'll handle game over when the call ends
+              isFiredRef.current = true; // Mark as fired so handleHangupPhone triggers game over reliably
           } else if (type === 'ADVICE') {
               const adviceData = await generateBossAdvice();
               systemInstruction = `You are the Boss of the restaurant. You are calling the bouncer (the user).
@@ -1032,8 +1071,9 @@ INSTRUCTIONS:
       // Reset so auto-connect re-fires and reconnects to the current character
       autoConnectedCharRef.current = null;
 
-      // If reputation is below 0, game over
-      if (gameState.reputation <= 0) {
+      // If fired, trigger game over (use ref to avoid stale closure on gameState.reputation)
+      if (isFiredRef.current) {
+          isFiredRef.current = false;
           setGameState(prev => ({ ...prev, gameOver: true }));
       }
   };

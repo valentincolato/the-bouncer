@@ -64,9 +64,10 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
   - If the character claims to have a reservation but is NOT on the list, they are lying (or mistaken).
 
   IMPOSTER LOGIC (Crucial):
-  - Sometimes (20% chance), create an IMPOSTER.
-  - An IMPOSTER uses a Name from the Guest List but has the WRONG Group Size.
-  - Example: Guest List says "John Smith, Party of 2". The character says "I'm John Smith" but shows up with 4 people (stats.groupSize = 4).
+  - A REAL guest on the list MUST have stats.groupSize equal to their group size on the list. Do NOT change it.
+  - Sometimes (rare, around 10% of cases), create an IMPOSTER instead.
+  - An IMPOSTER uses a Name from the Guest List but has a DIFFERENT stats.groupSize than what the list shows.
+  - Example: Guest List says "John Smith, Party of 2". The IMPOSTER says "I'm John Smith" but shows up with 4 people (stats.groupSize = 4).
   - This is a puzzle for the player to solve.
   - stats.isReservation must be true for imposters (they claim to have a reservation).
 
@@ -293,6 +294,22 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
         voiceName = Math.random() > 0.5 ? 'Puck' : 'Fenrir';
     } else if (data.gender === 'Female') {
         voiceName = Math.random() > 0.5 ? 'Kore' : 'Zephyr';
+    }
+
+    // Enforce imposter rate: if the character's name matches a guest on the list
+    // and they claim a reservation, only keep the groupSize mismatch 10% of the time.
+    // The rest of the time, correct it to match the guest list.
+    if (data.stats?.isReservation && guestList.length > 0) {
+      const matchedGuest = guestList.find(
+        g => g.name.toLowerCase().trim() === (data.name || '').toLowerCase().trim()
+      );
+      if (matchedGuest && matchedGuest.groupSize !== data.stats.groupSize) {
+        // LLM generated a wrong groupSize — decide if this is intentional imposter (10%) or an error (90%)
+        const isIntentionalImposter = Math.random() < 0.10;
+        if (!isIntentionalImposter) {
+          data.stats.groupSize = matchedGuest.groupSize;
+        }
+      }
     }
 
     return {
