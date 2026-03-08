@@ -1,6 +1,6 @@
 {
-  "name": "Remix: Remix: The Restaurant Bouncer",
-  "description": "A narrative decision-making game where you play as a bouncer balancing profit, reputation, and ethics.",
+  "name": "The Bouncer",
+  "description": "A narrative decision game where you are the bouncer and must balance reputation, profit, and risk.",
   "requestFramePermissions": [
     "microphone"
   ]
