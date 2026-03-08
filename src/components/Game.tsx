@@ -1548,7 +1548,7 @@ INSTRUCTIONS:
       <div className="min-h-screen flex items-center justify-center bg-yellow-400 text-black font-display">
         <div className="flex flex-col items-center gap-4 border-4 border-black p-8 bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
             <Loader2 className="w-12 h-12 animate-spin text-black" />
-            <p className="text-2xl uppercase tracking-widest animate-pulse">Scanning...</p>
+            <p className="text-2xl uppercase tracking-widest animate-pulse">Preparing shift...</p>
         </div>
       </div>
     );
