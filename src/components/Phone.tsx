@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone as PhoneIcon, PhoneOff, Volume2 } from 'lucide-react';
+import { Phone as PhoneIcon, PhoneOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 

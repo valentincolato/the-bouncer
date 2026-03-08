@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'motion/react';
 import { Star, DollarSign } from 'lucide-react';
 import { GameState } from '@/types';
 import { cn } from '@/lib/utils';

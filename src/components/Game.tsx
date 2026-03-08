@@ -8,7 +8,7 @@ import { IDCardSVG } from '@/components/IDCardSVG';
 import { Character, GameState, INITIAL_STATE, Outcome, Guest, Archetype } from '@/types';
 import { generateBossCall, generateVagueDescription, generateBossScolding, generateBossFiredCall, generateBossAdvice, generateDailyCustomers, generateBossPoliticianCall, generateBossFamilyCall, generateBossInspectionAdvice } from '@/services/gemini';
 import { cn } from '@/lib/utils';
-import { Check, X, MoreHorizontal, Mic, MicOff, Loader2, Play, SkipForward, ClipboardList, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Check, X, Mic, MicOff, Loader2, SkipForward, ClipboardList } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, Tool } from "@google/genai";
 import { AudioRecorder, AudioPlayer } from '@/lib/audio';
 
@@ -158,8 +158,6 @@ export default function Game() {
   // Guest List State
   const [guestList, setGuestList] = useState<Guest[]>([]);
   const [showGuestList, setShowGuestList] = useState(false);
-  const [guestListPage, setGuestListPage] = useState(0);
-  const [isProcessingDecision, setIsProcessingDecision] = useState(false);
   const isProcessingDecisionRef = useRef(false);
   
   // ID Card State
@@ -576,7 +574,6 @@ export default function Game() {
                     const decision = args.decision === 'allow' ? 'allow' : 'reject';
                     
                     isProcessingDecisionRef.current = true;
-                    setIsProcessingDecision(true);
                     
                     const remaining = playerRef.current?.getRemainingDuration() || 0;
                     setTimeout(() => {
@@ -641,7 +638,6 @@ export default function Game() {
   const handleDecision = async (type: 'allow' | 'reject') => {
     if (!currentCharacter || isProcessingDecisionRef.current) return;
     isProcessingDecisionRef.current = true;
-    setIsProcessingDecision(true);
     
     // Stop the live interaction immediately when a decision is made
     disconnectLive();
@@ -829,7 +825,6 @@ export default function Game() {
              loadNextCharacter();
          }
          isProcessingDecisionRef.current = false;
-         setIsProcessingDecision(false);
     }, waitTime);
   };
 
@@ -1411,8 +1406,7 @@ INSTRUCTIONS:
         <GuestList 
           guests={guestList} 
           isOpen={showGuestList} 
-          onClose={() => setShowGuestList(false)} 
-          currentDay={gameState.currentDay}
+          onClose={() => setShowGuestList(false)}
         />
       </div>
 

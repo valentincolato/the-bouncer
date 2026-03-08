@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { User, Users, AlertCircle, DollarSign } from 'lucide-react';
+import { User, Users, DollarSign } from 'lucide-react';
 import { Character } from '@/types';
 import { cn } from '@/lib/utils';
 import { TutorialPopup } from '@/components/TutorialPopup';

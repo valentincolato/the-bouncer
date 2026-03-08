@@ -2,13 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Guest } from '@/types';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
 
 interface GuestListProps {
   guests: Guest[];
   isOpen: boolean;
   onClose: () => void;
-  currentDay: number;
 }
 
 interface GuestListSVGProps {
@@ -154,7 +152,7 @@ export function GuestListSVG({ guests, onClose, className, onClick }: GuestListS
     );
 }
 
-export function GuestList({ guests, isOpen, onClose, currentDay }: GuestListProps) {
+export function GuestList({ guests, isOpen, onClose }: GuestListProps) {
   return (
     <AnimatePresence>
       {isOpen && (
