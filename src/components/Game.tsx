@@ -14,9 +14,20 @@ import { AudioRecorder, AudioPlayer } from '@/lib/audio';
 
 import { TutorialPopup } from '@/components/TutorialPopup';
 
-// Initialize Gemini
-const apiKey = process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const fetchLiveEphemeralToken = async (): Promise<string> => {
+  const response = await fetch('/api/gemini/live-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ephemeral token (${response.status})`);
+  }
+  const data = await response.json();
+  if (!data?.token) {
+    throw new Error('Ephemeral token missing in response');
+  }
+  return data.token as string;
+};
 
 // Tool Definition for Hang Up
 const hangUpTool: Tool = {
@@ -1251,7 +1262,13 @@ INSTRUCTIONS:
             return;
         }
 
-        sessionPromise = ai.live.connect({
+        const token = await fetchLiveEphemeralToken();
+        const liveAi = new GoogleGenAI({
+            apiKey: token,
+            httpOptions: { apiVersion: 'v1alpha' }
+        });
+
+        sessionPromise = liveAi.live.connect({
             model: "gemini-2.5-flash-native-audio-preview-09-2025",
             config: {
                 tools: config.tools,
@@ -1268,28 +1285,6 @@ INSTRUCTIONS:
             callbacks: {
                 onopen: async () => {
                     console.log("Live API Connected");
-                    
-                    if (talkingToRef.current === 'character') {
-                        setIsInterrogating(true);
-                         sessionPromise.then(session => {
-                            session.sendRealtimeInput({
-                                content: {
-                                    parts: [{ text: "The bouncer is looking at you. Say your greeting line now." }]
-                                }
-                            });
-                        });
-                    }
-                    
-                    // If boss, send an initial text to trigger him to speak first
-                    if (talkingToRef.current === 'boss') {
-                         sessionPromise.then(session => {
-                            session.sendRealtimeInput({
-                                content: {
-                                    parts: [{ text: "The bouncer has picked up the phone. Speak now." }]
-                                }
-                            });
-                        });
-                    }
                 },
                 onmessage: (message: any) => {
                     if (message.serverContent?.interrupted) {
@@ -1344,6 +1339,22 @@ INSTRUCTIONS:
 
         const currentSession = await sessionPromise;
         sessionRef.current = currentSession;
+
+        // Send initial turn only after we have a concrete session instance.
+        if (talkingToRef.current === 'character') {
+            setIsInterrogating(true);
+            currentSession.sendRealtimeInput({
+                content: {
+                    parts: [{ text: "The bouncer is looking at you. Say your greeting line now." }]
+                }
+            });
+        } else if (talkingToRef.current === 'boss') {
+            currentSession.sendRealtimeInput({
+                content: {
+                    parts: [{ text: "The bouncer has picked up the phone. Speak immediately with your first line. Do not wait." }]
+                }
+            });
+        }
 
     } catch (error) {
         console.error("Failed to connect to Live API:", error);

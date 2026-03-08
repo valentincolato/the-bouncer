@@ -1,10 +1,25 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { Character, Archetype, Guest } from "@/types";
 
-// Initialize Gemini
-// Note: In a real app, we should handle the missing API key gracefully.
-const apiKey = process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+type GeminiProxyResponse = {
+  text?: string;
+  candidates?: any[];
+};
+
+const generateViaBackend = async (payload: unknown): Promise<GeminiProxyResponse> => {
+  const response = await fetch('/api/gemini/generate-content', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Gemini backend request failed (${response.status}): ${details}`);
+  }
+
+  return response.json();
+};
 
 const ARCHETYPES: Archetype[] = [
   'Rushed Family',
@@ -272,7 +287,7 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
   };
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model,
       contents: prompt,
       config: {
@@ -465,7 +480,7 @@ export async function generateBossInspectionAdvice(
   };
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
@@ -534,37 +549,47 @@ export async function generateDailyCustomers(day: number, guestList: Guest[], in
 }
 
 export async function generateCharacterImage(visualDescription: string): Promise<string> {
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-preview-image-generation',
-      contents: {
-        parts: [
-          {
-            text: `A comic book style portrait of a character matching this description: ${visualDescription}. Thick black lines, vibrant colors, flat shading, american comic book style. White background.`,
-          },
-        ],
-      },
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
+  const imagePrompt = `A comic book style portrait of a character matching this description: ${visualDescription}. Thick black lines, vibrant colors, flat shading, american comic book style. White background.`;
+  const imageModels = [
+    'gemini-2.5-flash-image',
+    'gemini-3.1-flash-image-preview',
+    'gemini-3-pro-image-preview',
+  ];
+  let lastError: any = null;
 
-    if (response.candidates?.[0]?.content?.parts) {
+  for (const model of imageModels) {
+    try {
+      const response = await generateViaBackend({
+        model,
+        contents: {
+          parts: [{ text: imagePrompt }],
+        },
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      });
+
+      if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            }
+          if (part.inlineData) {
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          }
         }
+      }
+    } catch (error: any) {
+      lastError = error;
+      const message = error?.message || '';
+      const isNotFound = message.includes('NOT_FOUND') || message.toLowerCase().includes('not found');
+      if (!isNotFound) break;
     }
-    return '';
-  } catch (error: any) {
-    if (error.message?.includes('429') || error.status === 'RESOURCE_EXHAUSTED') {
-        console.warn("Gemini API Quota Exceeded for Image. Using placeholder.");
-    } else {
-        console.error("Failed to generate character image:", error);
-    }
-    return '';
   }
+
+  if (lastError?.message?.includes('429') || lastError?.status === 'RESOURCE_EXHAUSTED') {
+    console.warn("Gemini API Quota Exceeded for Image. Using placeholder.");
+  } else if (lastError) {
+    console.error("Failed to generate character image:", lastError);
+  }
+  return '';
 }
 
 export async function generateVagueDescription(visualDescription: string): Promise<string> {
@@ -577,7 +602,7 @@ export async function generateVagueDescription(visualDescription: string): Promi
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model: "gemini-2.5-flash",
       contents: prompt,
     });
@@ -603,7 +628,7 @@ export async function generateBossCall(vagueDescription: string): Promise<string
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model: "gemini-2.5-flash",
       contents: prompt,
     });
@@ -624,7 +649,7 @@ export async function generateBossScolding(reputation: number): Promise<string> 
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model: "gemini-2.5-flash",
       contents: prompt,
     });
@@ -645,7 +670,7 @@ export async function generateBossFiredCall(): Promise<string> {
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model: "gemini-2.5-flash",
       contents: prompt,
     });
@@ -692,7 +717,7 @@ export async function generateBossAdvice(): Promise<{ text: string, topic: strin
   }
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model: "gemini-2.5-flash",
       contents: prompt,
     });
@@ -714,7 +739,7 @@ export async function generateBossPoliticianCall(vagueDescription: string): Prom
     `;
   
     try {
-      const response = await ai.models.generateContent({
+      const response = await generateViaBackend({
         model: "gemini-2.5-flash",
         contents: prompt,
       });
@@ -736,7 +761,7 @@ export async function generateBossFamilyCall(vagueDescription: string): Promise<
     `;
   
     try {
-      const response = await ai.models.generateContent({
+      const response = await generateViaBackend({
         model: "gemini-2.5-flash",
         contents: prompt,
       });
@@ -749,7 +774,7 @@ export async function generateBossFamilyCall(vagueDescription: string): Promise<
 
 export async function generateTTS(text: string, voiceName: string = "Charon"): Promise<{ data: string, mimeType: string } | null> {
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateViaBackend({
       model: "gemini-2.5-flash-preview-tts",
       contents: {
         parts: [
