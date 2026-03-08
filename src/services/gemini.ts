@@ -45,71 +45,138 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
   // Convert guest list to string for prompt
   const guestListStr = JSON.stringify(guestList.map(g => ({ name: g.name, gender: g.gender, groupSize: g.groupSize })));
 
-  const prompt = `Generate a character for a game called "The Restaurant Bouncer". 
-  The character is approaching the restaurant entrance.
+  const prompt = `Generate a character for a game called "The Nightclub Bouncer".
+  The character is approaching the nightclub entrance.
   Archetype: ${archetype}
   Difficulty Level: ${difficulty} (1-5)
-  
+
   GUEST LIST: ${guestListStr}
-  
+
   IMPORTANT: As difficulty increases, characters should become more deceptive.
   - Level 1: Straightforward. Good people look good, bad people look bad.
   - Level 2-3: Some trickery. A polite person might have a fake reservation. A rough person might be a VIP.
   - Level 4-5: High deception. Characters will actively try to trick the bouncer. Visuals might contradict their true intentions.
-  
+
   NAME AND GENDER RULES:
   - You MAY choose to be one of the people on the Guest List. If you do, you MUST use their exact Name and Gender.
   - If you are NOT on the guest list, generate a new Name and Gender.
   - IMPORTANT: Ensure the chosen Name is typically associated with the chosen Gender to avoid confusion (e.g. 'James' for Male, 'Mary' for Female). Avoid unisex names if possible.
   - If the character claims to have a reservation but is NOT on the list, they are lying (or mistaken).
-  
+
   IMPOSTER LOGIC (Crucial):
   - Sometimes (20% chance), create an IMPOSTER.
   - An IMPOSTER uses a Name from the Guest List but has the WRONG Group Size.
   - Example: Guest List says "John Smith, Party of 2". The character says "I'm John Smith" but shows up with 4 people (stats.groupSize = 4).
   - This is a puzzle for the player to solve.
+  - stats.isReservation must be true for imposters (they claim to have a reservation).
 
-  ID CARD LOGIC (New Mechanic):
+  WANTSTOHIDENAME RULES:
+  - wantsToHideName: boolean. Set to true if the character has a reason to avoid revealing their name.
+  - Should be true for: Suspicious Character, Celebrity in Disguise, Dine and Dasher, Imposters, and sometimes Drunk Regular.
+  - Should be false for most other archetypes.
+
+  ID CARD LOGIC:
   - Characters have an ID Card.
-  - hasID: boolean. usually true, but sometimes (10%) they forgot it.
-  - refusesID: boolean. usually false, but suspicious characters or VIPs might refuse to show it (arrogance or hiding something).
+  - hasID: boolean. Usually true, but sometimes (10%) they forgot it.
+  - refusesID: boolean. Usually false, but Suspicious Characters, VIPs, and Celebrities in Disguise might refuse (arrogance or hiding something).
   - idData.name: The name ON THE CARD.
     - If honest: Matches their spoken name.
     - If imposter/liar: Might match the Guest List name they are claiming (Fake ID) OR might be their REAL name (revealing they are lying).
   - idData.isFake: boolean. True if the ID is forged.
-  - idData.expirationDate: Date string (DD/MM/YYYY). 
-    - Current date is 2026. 
+  - idData.expirationDate: Date string (DD/MM/YYYY).
+    - Current date is 2026.
     - Some IDs should be expired (e.g. 2023, 2024). This is a valid reason to reject.
   - idData.idNumber: Random string like "99.876.543-A".
-  
+
   Provide the response in JSON format matching the schema.
   The visual description should be a short string describing their appearance (e.g. "A tired man in a suit holding a crying baby").
-  
+
   Outcomes should describe what happens if the player allows or rejects them.
-  
+  The optional 'exception' outcome is for a creative middle-ground the bouncer might offer (e.g. letting a group of 4 in as 2, or asking a food critic to wait for a manager). Only include it when there is a natural compromise available.
+
   SPECIFIC BEHAVIOR RULES FOR ARCHETYPES:
-  - Influencer: 
-    - Usually pays NOTHING (expects free meal, profitChange = 0 or negative cost).
-    - Small chance (10%) of LOVING it and leaving a huge tip (profitChange = +100).
-    - Reputation change depends on treatment: High if treated like royalty, Low/Negative if treated like a normal person.
+  - Rushed Family:
+    - Stressed parents, possibly with kids. Sympathetic but chaotic.
+    - If allowed: Decent profit (+$20), small reputation boost (+3). They're grateful but loud.
+    - If rejected: Moderate reputation loss (-5). They make a scene at the door.
+  - Hungry Poor Person:
+    - Desperate and broke. Budget is None or Low.
+    - If allowed (compassionate decision): Small profit (+$5), big reputation boost (+10 for being kind).
+    - If rejected: Small reputation loss (-3). They leave sadly.
+  - Student:
+    - Young, friendly, low budget. Probably here for a good time.
+    - If allowed: Small profit (+$10), decent reputation boost (+4).
+    - If rejected: Minor reputation loss (-2).
+  - Influencer:
+    - Usually pays NOTHING (expects free entry, profitChange = 0 or slightly negative).
+    - Small chance (10%) of LOVING it and posting about it (profitChange = +20, reputationChange = +20).
+    - If rejected: Might post a negative review (reputationChange = -10).
+  - Angry Customer:
+    - Claims previous mistreatment. Volatile.
+    - If allowed: Causes a scene inside. Profit decreases (-$15), reputation decreases (-8).
+    - If rejected: Makes a bigger scene outside. Reputation decreases (-5).
+  - VIP:
+    - Expects special treatment. Impatient.
+    - If allowed and treated well: High profit (+$40), big reputation boost (+10).
+    - If rejected: Huge reputation damage (-15). They know people.
+  - Food Critic:
+    - Appears like a normal customer. Does NOT reveal their identity.
+    - If allowed: Reviews the club. Reputation big change (could be +15 or -10 depending on framing). Profit moderate (+$20).
+    - If rejected: Terrible review. Reputation -15.
+  - Lost Tourist:
+    - Harmless, confused, wrong place.
+    - If allowed: Tiny profit (+$8), small reputation boost (+2).
+    - If rejected: They wander off. No real consequence (reputationChange = 0).
+  - Drunk Regular:
+    - Already intoxicated. Risk of trouble.
+    - If allowed: Causes a mess. Profit decreases (-$10), reputation decreases (-6).
+    - If rejected: Stumbles away. Small reputation boost (+3) for keeping order.
+  - Health Inspector:
+    - On official duty. Denying entry is risky.
+    - If allowed: Inspection happens. Reputation change depends on club condition (handled by game logic).
+    - If rejected: Legal trouble. Big reputation loss (-20).
+  - Celebrity in Disguise:
+    - Looks completely normal. Hiding their identity on purpose.
+    - If allowed and treated like a normal person: Big reputation boost (+15) if they liked the anonymity.
+    - If allowed and pestered: Reputation loss (-8).
+    - If rejected: Huge reputation damage (-20) when it comes out who they were.
+  - Rival Chef:
+    - Wants to spy on operations. Looks like a normal customer.
+    - If allowed: Steals trade secrets. Reputation loss (-8), no profit change.
+    - If rejected (caught): Small reputation boost (+5) for vigilance.
+  - Nervous First Date:
+    - Two people on a first date, anxious and hopeful.
+    - If allowed: Sweet moment. Small profit (+$15), reputation boost (+5).
+    - If rejected: Ruins the date. Reputation loss (-8).
+  - Suspicious Character:
+    - Sketchy appearance or behavior. Hiding something.
+    - If allowed: Steals something or causes trouble. Profit decreases (-$20), reputation decreases (-5).
+    - If rejected: Good call. Reputation boost (+5).
+  - Local Politician:
+    - Club needs their support for the liquor license.
+    - If allowed and treated well: Big reputation boost (+12). Important political favor.
+    - If rejected: Political trouble. Reputation loss (-10).
   - Picky Eater:
-    - Even if allowed, they complain about the food.
-    - Profit increases (they pay), but Reputation change is 0 or slightly negative (e.g. -2).
+    - Complains about everything.
+    - If allowed: Pays but complains. Profit increases (+$15), reputation stays same or slightly negative (-2).
+    - If rejected: Small reputation loss (-3) for being unwelcoming.
   - Dine and Dasher:
     - Looks normal or charming.
-    - If allowed: They eat and run without paying. Profit DECREASES (cost of food, e.g. -$20 to -$40). Reputation change is 0.
+    - If allowed: Eats and runs without paying. Profit DECREASES (-$25 to -$40). Reputation change = 0.
+    - If rejected: Dodged a bullet. Reputation boost (+4).
   - Average Joe:
-    - Just a normal person.
-    - If allowed: Small profit (+$15), small reputation gain (+$1 to +2). Nothing special.
-  
+    - Just a normal person. Nothing special.
+    - If allowed: Small profit (+$15), small reputation gain (+2).
+    - If rejected: Small reputation loss (-3).
+
   GENERAL OUTCOME RULES:
-  - Allow: 
+  - Allow:
     - If good customer: Profit increases (entry fee/tips, e.g. +$10 to +$30). Reputation increases.
     - If bad customer: Profit DECREASES (damages, theft, e.g. -$20 to -$50). Reputation decreases.
-  - Reject: 
+  - Reject:
     - If good customer: Reputation decreases significantly. No profit change.
     - If bad customer: Reputation increases or stays same. No profit change (avoided loss).
-  
+
   Make the dilemmas interesting.
   `;
 
