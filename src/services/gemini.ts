@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Character, Archetype, Guest } from "@/types";
 
 // Initialize Gemini
@@ -379,7 +379,7 @@ export async function generateDailyCustomers(day: number, guestList: Guest[], in
                 }
                 
                 try {
-                    const imageUrl = await generateCharacterImage(char.visualDescription, char.gender, char.archetype, char.stats.mood);
+                    const imageUrl = await generateCharacterImage(char.visualDescription);
                     if (imageUrl) char.imageUrl = imageUrl;
                 } catch (e) {
                     console.error("Failed to preload image for daily customer", e);
@@ -391,7 +391,7 @@ export async function generateDailyCustomers(day: number, guestList: Guest[], in
     return Promise.all(promises);
 }
 
-export async function generateCharacterImage(visualDescription: string, gender?: string, archetype?: string, mood?: string): Promise<string> {
+export async function generateCharacterImage(visualDescription: string): Promise<string> {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -407,16 +407,7 @@ export async function generateCharacterImage(visualDescription: string, gender?:
     if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData) {
-                const base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                // Save to server for future fallback
-                if (archetype && gender && mood) {
-                    fetch('/api/save-image', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ archetype, gender, mood, base64Image })
-                    }).catch(console.error);
-                }
-                return base64Image;
+                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
             }
         }
     }
@@ -427,28 +418,7 @@ export async function generateCharacterImage(visualDescription: string, gender?:
     } else {
         console.error("Failed to generate character image:", error);
     }
-    
-    // Try to get from server fallback first
-    if (archetype && gender && mood) {
-        try {
-            const res = await fetch(`/api/fallback-image?archetype=${encodeURIComponent(archetype)}&gender=${encodeURIComponent(gender)}&mood=${encodeURIComponent(mood)}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.url) {
-                    console.log("Using server fallback image:", data.url);
-                    return data.url;
-                }
-            }
-        } catch (e) {
-            console.error("Failed to fetch fallback image from server", e);
-        }
-    }
-
-    // Fallback to static SVGs
-    if (archetype === 'Health Inspector') return '/fallbacks/inspector.svg';
-    if (archetype === 'VIP' || archetype === 'Celebrity in Disguise' || archetype === 'Local Politician') return '/fallbacks/vip.svg';
-    if (gender === 'Female') return '/fallbacks/female.svg';
-    return '/fallbacks/male.svg';
+    return '';
   }
 }
 
@@ -644,7 +614,7 @@ export async function generateTTS(text: string, voiceName: string = "Charon"): P
         ],
       },
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {

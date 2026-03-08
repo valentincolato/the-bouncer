@@ -18,10 +18,6 @@ export function HUD({ gameState, className }: HUDProps) {
             <Star className="w-5 h-5 text-yellow-500 stroke-[3px]" />
             <span className="font-display font-bold text-xl">{gameState.reputation}%</span>
         </div>
-        <div className="flex items-center gap-1">
-            <DollarSign className="w-5 h-5 text-green-500 stroke-[3px]" />
-            <span className="font-display font-bold text-xl">${gameState.profit}</span>
-        </div>
       </div>
 
       {/* Desktop: Separate Cards */}
@@ -32,14 +28,6 @@ export function HUD({ gameState, className }: HUDProps) {
             value={`${gameState.reputation}%`}
             color="text-yellow-500"
             bgColor="bg-yellow-100"
-            size="small"
-        />
-        <StatCard 
-            icon={DollarSign} 
-            label="Profit" 
-            value={`$${gameState.profit}`}
-            color="text-green-500"
-            bgColor="bg-green-100"
             size="small"
         />
       </div>
