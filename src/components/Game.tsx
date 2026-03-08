@@ -559,6 +559,13 @@ export default function Game() {
             return '';
         })();
 
+        const backstoryConsistencyRules = `BACKSTORY CONSISTENCY RULES:
+                    - Treat your inner thoughts/backstory as canonical truth for this conversation.
+                    - If the bouncer asks who you are, your life story, job, background, where you came from, or why you are here, answer consistently with that backstory.
+                    - Keep key personal facts stable across turns (name, relationship details, work, motives, and timeline).
+                    - Do NOT invent a contradictory biography later in the conversation.
+                    - If a detail is not in your backstory, improvise carefully without contradicting existing facts.`;
+
         // Special system instruction for a displaced real guest (someone whose reservation was used by an imposter)
         if (char.isDisplacedGuest) {
             const wasStolen = char.imposterDecision === 'allow';
@@ -575,6 +582,7 @@ export default function Game() {
                     }
 
                     YOUR INNER THOUGHTS: ${char.backstory}
+                    ${backstoryConsistencyRules}
 
                     ID CARD RULES:
                     - You have a valid ID. Name: ${char.name}.
@@ -640,6 +648,7 @@ export default function Game() {
 
                 YOUR INNER THOUGHTS (use this to stay in character — do NOT say this out loud verbatim, but let it guide everything you say):
                 ${char.backstory}
+                ${backstoryConsistencyRules}
                 Reluctant to reveal name: ${char.wantsToHideName ? "YES" : "NO"}.
 
                 VOICE INSTRUCTION: Speak with a tone that matches your mood (${char.stats.mood}).
@@ -1801,9 +1810,9 @@ INSTRUCTIONS:
                 </div>
                 
                 {isVoiceSessionActive && (
-                    <div className="flex flex-col items-center gap-1 fixed bottom-28 left-1/2 -translate-x-1/2 md:static md:translate-x-0 z-50 w-full px-4">
+                    <div className="flex flex-col items-center fixed bottom-32 left-1/2 -translate-x-1/2 md:static md:translate-x-0 z-50 w-full px-4 -mt-4">
                         <p className={cn(
-                            "text-sm font-bold font-sans bg-white px-2 border-2 border-black text-center shadow-lg",
+                            "text-base md:text-lg font-bold font-sans bg-white/95 px-4 py-2 border-4 border-black text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] max-w-xl w-auto leading-tight",
                             isModelSpeaking
                                 ? (talkingTo === 'boss' ? "text-red-700" : "text-blue-700")
                                 : (talkingTo === 'boss' ? "text-orange-700 animate-pulse" : "text-purple-600 animate-pulse")
