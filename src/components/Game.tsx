@@ -160,6 +160,7 @@ export default function Game() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [isInterrogating, setIsInterrogating] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isModelSpeaking, setIsModelSpeaking] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<'ASK_NAME' | 'CHECK_LIST' | 'BOSS_WARNING' | 'DONE'>(
@@ -179,6 +180,7 @@ export default function Game() {
   const sessionRef = useRef<any>(null);
   const recorderRef = useRef<AudioRecorder | null>(null);
   const playerRef = useRef<AudioPlayer | null>(null);
+  const liveConnectionIdRef = useRef(0);
   
   // Respect Analysis Refs
   const interactionQualityRef = useRef<{ respectLevel: string, reasoning: string } | null>(null);
@@ -233,6 +235,23 @@ export default function Game() {
       setTutorialStep('BOSS_WARNING');
     }
   }, [showGuestList, tutorialStep]);
+
+  const isVoiceSessionActive = isInterrogating || talkingTo === 'boss';
+
+  // Track whether the model is currently speaking (audio queued/playing).
+  useEffect(() => {
+    if (!isVoiceSessionActive) {
+      setIsModelSpeaking(false);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      const remaining = playerRef.current?.getRemainingDuration() || 0;
+      setIsModelSpeaking(remaining > 0.05);
+    }, 150);
+
+    return () => window.clearInterval(interval);
+  }, [isVoiceSessionActive]);
   // ----------------------
 
   const processDailySchedule = (chars: Character[]) => {
@@ -449,6 +468,9 @@ export default function Game() {
   };
 
   const disconnectLive = () => {
+    // Invalidate pending async work from previous connectLive calls.
+    liveConnectionIdRef.current += 1;
+
     if (recorderRef.current) {
         recorderRef.current.stop();
         recorderRef.current = null;
@@ -1229,10 +1251,26 @@ INSTRUCTIONS:
       tools: Tool[],
       onToolCall?: (call: any) => void
   }) => {
+    const connectionId = liveConnectionIdRef.current + 1;
+    liveConnectionIdRef.current = connectionId;
     setIsConnecting(true);
 
     try {
-        disconnectLive();
+        // Close current resources but keep this connectionId as active.
+        if (recorderRef.current) {
+            recorderRef.current.stop();
+            recorderRef.current = null;
+        }
+        if (sessionRef.current) {
+            try { sessionRef.current.close(); } catch (_) {}
+            sessionRef.current = null;
+        }
+        if (playerRef.current) {
+            playerRef.current.stop();
+        }
+        setIsInterrogating(false);
+
+        const isStale = () => liveConnectionIdRef.current !== connectionId;
 
         let sessionPromise: Promise<any>;
 
@@ -1241,28 +1279,37 @@ INSTRUCTIONS:
         }
 
         recorderRef.current = new AudioRecorder((base64Data) => {
-            if (sessionPromise) {
-                sessionPromise.then(session => {
-                    session.sendRealtimeInput({
-                        media: {
-                            mimeType: "audio/pcm;rate=16000",
-                            data: base64Data
-                        }
-                    });
+            if (isStale()) return;
+            const activeSession = sessionRef.current;
+            if (!activeSession) return;
+            try {
+                activeSession.sendRealtimeInput({
+                    media: {
+                        mimeType: "audio/pcm;rate=16000",
+                        data: base64Data
+                    }
                 });
+            } catch (e) {
+                console.error("Failed to send realtime audio chunk:", e);
             }
         });
 
         try {
             await recorderRef.current.start();
+            if (isStale()) {
+                recorderRef.current.stop();
+                recorderRef.current = null;
+                return;
+            }
         } catch (err) {
             console.error("Microphone permission denied or failed to start:", err);
             alert("Microphone access is required for voice interaction. Please allow microphone access.");
-            setIsConnecting(false);
+            if (!isStale()) setIsConnecting(false);
             return;
         }
 
         const token = await fetchLiveEphemeralToken();
+        if (isStale()) return;
         const liveAi = new GoogleGenAI({
             apiKey: token,
             httpOptions: { apiVersion: 'v1alpha' }
@@ -1284,9 +1331,11 @@ INSTRUCTIONS:
             },
             callbacks: {
                 onopen: async () => {
+                    if (isStale()) return;
                     console.log("Live API Connected");
                 },
                 onmessage: (message: any) => {
+                    if (isStale()) return;
                     if (message.serverContent?.interrupted) {
                         console.log("Model interrupted");
                         playerRef.current?.stop();
@@ -1313,24 +1362,27 @@ INSTRUCTIONS:
                                 }
                                 
                                 // Send tool response
-                                sessionPromise.then(session => {
-                                    session.sendToolResponse({
+                                const activeSession = sessionRef.current;
+                                if (activeSession) {
+                                    activeSession.sendToolResponse({
                                         functionResponses: [{
                                             id: call.id,
                                             name: call.name,
                                             response: { result: "OK" }
                                         }]
                                     });
-                                });
+                                }
                             });
                         }
                     }
                 },
                 onclose: () => {
+                    if (isStale()) return;
                     console.log("Live API Closed");
                     setIsInterrogating(false);
                 },
                 onerror: (error: any) => {
+                    if (isStale()) return;
                     console.error("Live API Error:", error);
                     setIsInterrogating(false);
                 }
@@ -1338,6 +1390,10 @@ INSTRUCTIONS:
         });
 
         const currentSession = await sessionPromise;
+        if (isStale()) {
+            try { currentSession.close(); } catch (_) {}
+            return;
+        }
         sessionRef.current = currentSession;
 
         // Send initial turn only after we have a concrete session instance.
@@ -1357,11 +1413,14 @@ INSTRUCTIONS:
         }
 
     } catch (error) {
+        if (liveConnectionIdRef.current !== connectionId) return;
         console.error("Failed to connect to Live API:", error);
         alert("Failed to start voice interaction. Check permissions.");
         setIsInterrogating(false);
     } finally {
-        setIsConnecting(false);
+        if (liveConnectionIdRef.current === connectionId) {
+            setIsConnecting(false);
+        }
     }
   };
 
@@ -1741,10 +1800,21 @@ INSTRUCTIONS:
                     </button>
                 </div>
                 
-                {isInterrogating && (
+                {isVoiceSessionActive && (
                     <div className="flex flex-col items-center gap-1 fixed bottom-28 left-1/2 -translate-x-1/2 md:static md:translate-x-0 z-50 w-full px-4">
-                        <p className="text-sm font-bold font-sans text-purple-600 animate-pulse bg-white px-2 border-2 border-black text-center shadow-lg">
-                            Listening... Speak to the character.
+                        <p className={cn(
+                            "text-sm font-bold font-sans bg-white px-2 border-2 border-black text-center shadow-lg",
+                            isModelSpeaking
+                                ? (talkingTo === 'boss' ? "text-red-700" : "text-blue-700")
+                                : (talkingTo === 'boss' ? "text-orange-700 animate-pulse" : "text-purple-600 animate-pulse")
+                        )}>
+                            {talkingTo === 'boss'
+                                ? (isModelSpeaking
+                                    ? "Boss responding... Please wait."
+                                    : "Boss listening... Still waiting for response.")
+                                : (isModelSpeaking
+                                    ? "Responding... Please wait."
+                                    : "Listening... Still waiting for response.")}
                         </p>
                     </div>
                 )}

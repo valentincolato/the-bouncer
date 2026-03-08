@@ -10,6 +10,9 @@ export class AudioRecorder {
   }
 
   async start() {
+    // Defensive reset in case start() is called twice during rapid reconnects.
+    this.stop();
+
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.audioContext = new AudioContext({ sampleRate: 16000 });
     if (this.audioContext.state === 'suspended') {
@@ -51,6 +54,10 @@ export class AudioRecorder {
     if (this.stream) {
         this.stream.getTracks().forEach(track => track.stop());
     }
+    this.processor = null;
+    this.source = null;
+    this.audioContext = null;
+    this.stream = null;
   }
 }
 
