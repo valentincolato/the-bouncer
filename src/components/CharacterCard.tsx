@@ -43,7 +43,7 @@ export function CharacterCard({ character, className, tutorialStep, onCloseTutor
             <TutorialPopup 
               isOpen={tutorialStep === 'ASK_NAME'} 
               onClose={onCloseTutorial || (() => {})} 
-              text="¡Pregúntale su nombre!" 
+              text="Ask for their name!"
               position="custom"
               customClasses="top-full left-0 mt-4 w-48"
             />

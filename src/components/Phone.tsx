@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Phone as PhoneIcon, PhoneOff, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -12,15 +12,7 @@ interface PhoneProps {
 }
 
 function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS" }: PhoneProps) {
-  const [internalState, setInternalState] = useState(0);
-
-  useEffect(() => {
-    switch (status) {
-      case 'idle': setInternalState(0); break;
-      case 'ringing': setInternalState(1); break;
-      case 'active': setInternalState(2); break;
-    }
-  }, [status]);
+  const dataState = status === 'idle' ? 0 : status === 'ringing' ? 1 : 2;
 
   const handleClick = () => {
     if (status === 'idle' && onCallBoss) {
@@ -38,7 +30,7 @@ function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS
         xmlns="http://www.w3.org/2000/svg" 
         viewBox="0 0 500 500" 
         id="tactical-handy" 
-        data-state={internalState}
+        data-state={dataState}
         className="w-full h-full"
         style={{ cursor: 'pointer', width: '100%', maxWidth: '500px', fontFamily: "'Impact', 'Arial Black', sans-serif" }}
       >
@@ -58,7 +50,7 @@ function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS
           .shadow-only { fill: #111; }
           .svg-outline { stroke: #111; stroke-width: 4px; stroke-linejoin: round; }
           
-          /* Variables de color tácticas */
+          /* Color variables */
           .color-body { fill: #212121; } 
           .color-accent { fill: #FF5722; } 
           .color-screen { fill: #8BC34A; } 
@@ -74,7 +66,7 @@ function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS
              ESTADO 0: NORMAL (REPOSO) 
              ========================================= */
           [data-state="0"] #handy-body-group {
-            transform: translate(20px, 180px) rotate(15deg); /* Más abajo e inclinado al otro lado */
+            transform: translate(20px, 180px) rotate(15deg); /* Lowered and tilted */
           }
           /* Hover effect handled by parent div scaling, but let's add internal lift */
           [data-state="0"]:hover #handy-body-group {
@@ -114,7 +106,7 @@ function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS
              ESTADO 2: HABLANDO (Transmitiendo)
              ========================================= */
           [data-state="2"] #handy-body-group {
-            transform: translate(0, -40px) rotate(0deg); /* Sube más al contestar */
+            transform: translate(0, -40px) rotate(0deg); /* Rises higher when answered */
           }
           [data-state="2"] .ring-fx {
             opacity: 0;
@@ -133,7 +125,7 @@ function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS
             transform-origin: 250px 300px;
           }
 
-          /* Keyframes de Animación */
+          /* Animation Keyframes */
           @keyframes violentShake {
             0% { transform: translate(3px, 3px) rotate(2deg); }
             25% { transform: translate(-3px, -1px) rotate(-2deg); }
@@ -150,7 +142,7 @@ function ComicPhone({ status, onAnswer, onHangup, onCallBoss, callerName = "BOSS
             100% { fill: #FF1744; } /* Rojo brillante */
           }
           
-          /* Animaciones de Texto Corregidas (Incluyen posición y rotación) */
+          /* Text Animations (include position and rotation) */
           @keyframes textPopBeep {
             0% { transform: translate(360px, 150px) rotate(15deg) scale(0.9); opacity: 0.8; }
             100% { transform: translate(360px, 150px) rotate(15deg) scale(1.15); opacity: 1; }

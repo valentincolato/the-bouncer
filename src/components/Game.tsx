@@ -192,6 +192,7 @@ export default function Game() {
   };
   const phoneStatus = phoneStatusState;
   const [phoneMessage, setPhoneMessage] = useState<string>('');
+  const phoneVoiceRef = useRef<string>('Fenrir');
   const [bossCallsMade, setBossCallsMade] = useState<{ scolding: boolean, vip: boolean, advice: boolean }>({ scolding: false, vip: false, advice: false });
   const talkingToRef = useRef<'character' | 'boss' | null>(null);
   const [talkingToState, setTalkingToState] = useState<'character' | 'boss' | null>(null);
@@ -356,6 +357,7 @@ export default function Game() {
       setOutcome(null);
       setCurrentCharacter(null);
       setBossCallsMade({ scolding: false, vip: false, advice: false });
+      phoneVoiceRef.current = 'Fenrir';
       setPhoneStatus('idle');
       setTalkingTo(null);
       setIsInterrogating(false);
@@ -363,6 +365,7 @@ export default function Game() {
       setShowIntro(false); // Skip intro on restart
       setShowIDCard(false);
       setIdCardOpen(false);
+      setTutorialStep('ASK_NAME'); // Reset tutorial
       
       // Reset refs
       dailyCharactersRef.current = [];
@@ -386,7 +389,7 @@ export default function Game() {
               const targetChar = chars[scheduleEvent.charIndex];
               if (targetChar) {
                   setTimeout(() => {
-                      triggerBossCall(scheduleEvent.type, targetChar, INITIAL_STATE.reputation, scheduleEvent.timing);
+                      triggerBossCall(scheduleEvent.type, targetChar, undefined, scheduleEvent.timing);
                   }, 1000);
               }
           }
@@ -438,7 +441,7 @@ export default function Game() {
         recorderRef.current = null;
     }
     if (sessionRef.current) {
-        // sessionRef.current.close(); // SDK might not have close method exposed directly depending on version, but we drop ref
+        try { sessionRef.current.close(); } catch (_) {}
         sessionRef.current = null;
     }
     // Stop audio playback immediately
@@ -569,16 +572,24 @@ export default function Game() {
 
   const startNextDay = async () => {
       const nextDay = gameState.currentDay + 1;
-      
+      const newProfit = gameState.profit - gameState.rentCost;
+
       const isInspection = Math.random() < 0.25;
       const conditions: GameState['clubCondition'][] = ['Pristine', 'Clean', 'Messy', 'Dirty', 'Filthy'];
       const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
+
+      // Eviction check: can't pay rent
+      if (newProfit < 0) {
+          setGameState(prev => ({ ...prev, profit: newProfit, gameOver: true }));
+          return;
+      }
 
       setGameState(prev => ({
           ...prev,
           currentDay: nextDay,
           customersServed: 0,
-          timeLeft: 240, // Reset time
+          timeLeft: 240,
+          profit: newProfit, // Deduct rent
           clubCondition: randomCondition,
           inspectionScheduled: isInspection
       }));
@@ -648,13 +659,23 @@ export default function Game() {
     else if (type === 'reject') result = currentCharacter.outcomes.reject;
     else result = currentCharacter.outcomes.exception || currentCharacter.outcomes.allow; // Fallback
 
-    // BOSS ADVICE OVERRIDE: If boss said reject and we rejected an inspector, cap the penalty
-    if (type === 'reject' && currentCharacter.isInspector && bossAdviceAction === 'reject') {
-        if (result.reputationChange < -5) {
+    // BOSS ADVICE OVERRIDE
+    if (currentCharacter.isInspector) {
+        if (type === 'reject' && bossAdviceAction === 'reject') {
+            // Boss said reject — cap the penalty, he takes the blame
+            if (result.reputationChange < -5) {
+                result = {
+                    ...result,
+                    reputationChange: -5,
+                    message: result.message + " (Boss took the blame)"
+                };
+            }
+        } else if (type === 'allow' && bossAdviceAction === 'allow') {
+            // Boss said allow — small bonus for following orders
             result = {
                 ...result,
-                reputationChange: -5,
-                message: result.message + " (Boss took the blame)"
+                reputationChange: result.reputationChange + 5,
+                message: result.message + " (Boss approved)"
             };
         }
     }
@@ -680,36 +701,36 @@ export default function Game() {
     // Check for FIRED condition first, even if day is over
     if (newReputation <= 0) {
         triggerBossCall('FIRED', undefined, newReputation);
-    } else if (!isDayOver) {
-        // Check Schedule for VIP/Politician/Family calls
+    } else {
+        // Scheduled calls must still fire on the last served customer (turn === totalCustomers).
         const scheduleEvent = bossScheduleRef.current[newCustomersServed];
         
-        // Force call on Day 1 after 2nd customer (if not scheduled) - ONLY if reputation is low
-        const isForcedCall = gameState.currentDay === 1 && newCustomersServed === 2 && !bossCallsMade.scolding && newReputation < 25;
-        
         if (scheduleEvent) {
-             // Scheduled VIP/Politician/Family Call
              const targetChar = allDailyCharactersRef.current[scheduleEvent.charIndex];
              if (targetChar) {
                  triggerBossCall(scheduleEvent.type, targetChar, newReputation, scheduleEvent.timing);
              }
-        }
-        else if (isForcedCall) {
-             triggerBossCall('SCOLDING', undefined, newReputation);
-        }
-        else {
-            // Random Scolding or Advice
-            const randomChance = Math.random() < 0.35;
-            const hasBossCalledBefore = bossCallsMade.scolding || bossCallsMade.vip || bossCallsMade.advice;
+        } else if (!isDayOver) {
+            // Force call on Day 1 after 2nd customer (if not scheduled) - ONLY if reputation is low
+            const isForcedCall = gameState.currentDay === 1 && newCustomersServed === 2 && !bossCallsMade.scolding && newReputation < 25;
+            
+            if (isForcedCall) {
+                triggerBossCall('SCOLDING', undefined, newReputation);
+            }
+            else {
+                // Random Scolding or Advice
+                const randomChance = Math.random() < 0.35;
+                const hasBossCalledBefore = bossCallsMade.scolding || bossCallsMade.vip || bossCallsMade.advice;
 
-            if (randomChance) {
-                // Prioritize Scolding if reputation is low
-                if (newReputation < 25 && !bossCallsMade.scolding) {
-                    triggerBossCall('SCOLDING', undefined, newReputation);
-                } 
-                // Advice (Wife/Son/Random) - Only after Day 2 and if he has called before AND reputation is low
-                else if (!bossCallsMade.advice && gameState.currentDay >= 2 && hasBossCalledBefore) {
-                    triggerBossCall('ADVICE', undefined, newReputation);
+                if (randomChance) {
+                    // Prioritize Scolding if reputation is low
+                    if (newReputation < 25 && !bossCallsMade.scolding) {
+                        triggerBossCall('SCOLDING', undefined, newReputation);
+                    } 
+                    // Advice (Wife/Son/Random) - Only after Day 2 and if he has called before AND reputation is low
+                    else if (!bossCallsMade.advice && gameState.currentDay >= 2 && hasBossCalledBefore) {
+                        triggerBossCall('ADVICE', undefined, newReputation);
+                    }
                 }
             }
         }
@@ -742,8 +763,10 @@ export default function Game() {
              setOutcome(null);
              setCurrentCharacter(null);
          } else if (newTimeLeft <= 0) {
-             alert("Shift Over (Time)!");
-             // Ideally we would show a game over screen here
+             // Time's up — end the shift and show the day-over screen
+             setGameState(prev => ({ ...prev, customersServed: prev.totalCustomers }));
+             setOutcome(null);
+             setCurrentCharacter(null);
          } else {
              // Transition
              setOutcome(null);
@@ -835,7 +858,12 @@ Be pathetic and weird.`;
 
           if (!systemInstruction) return;
 
-          setPhoneMessage(systemInstruction); // Store instruction temporarily to pass to connectLive
+          // Disconnect character session before the phone rings
+          disconnectLive();
+          setTalkingTo(null);
+
+          setPhoneMessage(systemInstruction);
+          phoneVoiceRef.current = voice;
           setPhoneStatus('ringing');
           if (ringtoneRef.current) {
               ringtoneRef.current.play().catch(e => console.error("Ringtone failed", e));
@@ -851,11 +879,7 @@ Be pathetic and weird.`;
   const handleCallBoss = async () => {
       if (!currentCharacter) return;
       
-      // Stop interaction with character if active
-      if (talkingTo === 'character') {
-          disconnectLive();
-      }
-      
+      disconnectLive();
       setPhoneStatus('active');
       setTalkingTo('boss');
       
@@ -906,8 +930,8 @@ INSTRUCTIONS:
       
       // Connect to Live API as Boss
       connectLive({
-          systemInstruction: phoneMessage, // We stored the prompt here
-          voiceName: bossCallsMade.advice ? "Charon" : "Fenrir",
+          systemInstruction: phoneMessage,
+          voiceName: phoneVoiceRef.current,
           tools: [hangUpTool],
           onToolCall: (call) => {
               if (call.name === 'hangUp') {
@@ -954,6 +978,8 @@ INSTRUCTIONS:
       disconnectLive();
       setPhoneStatus('idle');
       setTalkingTo(null);
+      // Reset so auto-connect re-fires and reconnects to the current character
+      autoConnectedCharRef.current = null;
 
       // If reputation is below 0, game over
       if (gameState.reputation <= 0) {
@@ -1321,7 +1347,7 @@ INSTRUCTIONS:
             <TutorialPopup 
               isOpen={tutorialStep === 'CHECK_LIST'}
               onClose={() => setTutorialStep('BOSS_WARNING')}
-              text="¡Abre la lista y revisa si está!"
+              text="Check the list — are they on it?"
               position="bottom-right"
               customClasses="mb-24 mr-4 w-48"
             />
@@ -1354,7 +1380,7 @@ INSTRUCTIONS:
          <TutorialPopup 
             isOpen={tutorialStep === 'CHECK_LIST'}
             onClose={() => setTutorialStep('BOSS_WARNING')}
-            text="¡Abre la lista y revisa si está!"
+            text="Check the list — are they on it?"
             position="bottom-right"
             customClasses="mb-32 mr-32 w-48"
          />
@@ -1389,7 +1415,7 @@ INSTRUCTIONS:
       <TutorialPopup 
         isOpen={tutorialStep === 'BOSS_WARNING'}
         onClose={() => setTutorialStep('DONE')}
-        text="¡Atento! Tu jefe podría llamarte en cualquier momento."
+        text="Heads up! Your boss might call at any moment."
         position="center"
         autoCloseDelay={12000}
       />
