@@ -45,8 +45,8 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
   // Convert guest list to string for prompt
   const guestListStr = JSON.stringify(guestList.map(g => ({ name: g.name, gender: g.gender, groupSize: g.groupSize })));
 
-  const prompt = `Generate a character for a game called "The Nightclub Bouncer".
-  The character is approaching the nightclub entrance.
+  const prompt = `Generate a character for a game called "The Restaurant Bouncer".
+  The character is approaching the restaurant entrance.
   Archetype: ${archetype}
   Difficulty Level: ${difficulty} (1-5)
 
@@ -356,7 +356,7 @@ export async function generateBossInspectionAdvice(
   inspectionScheduled: boolean
 ): Promise<{ text: string, action: 'allow' | 'reject' | 'neutral' }> {
   const prompt = `
-    You are the boss of a nightclub. You are on the phone with your bouncer.
+    You are the boss of a restaurant. You are on the phone with your bouncer.
     He is asking if he should let a specific person in.
     
     Context:
@@ -512,7 +512,7 @@ export async function generateVagueDescription(visualDescription: string): Promi
 
 export async function generateBossCall(vagueDescription: string): Promise<string> {
   const prompt = `
-    You are the boss of a nightclub. You are calling your bouncer.
+    You are the boss of a restaurant. You are calling your bouncer.
     You need to tell him that a VIP is coming tonight.
     You don't know their name, but you know what they look like.
     
@@ -538,7 +538,7 @@ export async function generateBossCall(vagueDescription: string): Promise<string
 
 export async function generateBossScolding(reputation: number): Promise<string> {
   const prompt = `
-    You are the boss of a nightclub. You are calling your bouncer to scold him.
+    You are the boss of a restaurant. You are calling your bouncer to scold him.
     His reputation is ${reputation}%.
     Tell him to shape up or he's fired.
     Tone: Angry, shouting, aggressive.
@@ -559,7 +559,7 @@ export async function generateBossScolding(reputation: number): Promise<string> 
 
 export async function generateBossFiredCall(): Promise<string> {
   const prompt = `
-    You are the boss of a nightclub. You are calling your bouncer to FIRE him.
+    You are the boss of a restaurant. You are calling your bouncer to FIRE him.
     His reputation dropped below 20%.
     Tell him he is completely useless, that he ruined your club's reputation, and that he is fired immediately.
     Tone: Extremely angry, screaming, furious.
@@ -586,7 +586,7 @@ export async function generateBossAdvice(): Promise<{ text: string, topic: strin
   
   if (topic === 'wife') {
       prompt = `
-        You are the boss of a nightclub. You are calling your bouncer.
+        You are the boss of a restaurant. You are calling your bouncer.
         You are drunk and emotional.
         Ask him for advice about your wife/relationship.
         Say something like "She says I work too much" or "I think she's seeing the chef".
@@ -595,7 +595,7 @@ export async function generateBossAdvice(): Promise<{ text: string, topic: strin
       `;
   } else if (topic === 'son') {
       prompt = `
-        You are the boss of a nightclub. You are calling your bouncer.
+        You are the boss of a restaurant. You are calling your bouncer.
         You are drunk and emotional.
         Talk about your disappointing son.
         Say something like "He wants to be a DJ" or "He crashed my car again".
@@ -604,7 +604,7 @@ export async function generateBossAdvice(): Promise<{ text: string, topic: strin
       `;
   } else {
       prompt = `
-        You are the boss of a nightclub. You are calling your bouncer.
+        You are the boss of a restaurant. You are calling your bouncer.
         You are drunk and weird.
         Share a random, bizarre thought or fact.
         Example: "Do you think pigeons are government drones?" or "I just ate a whole lemon."
@@ -627,7 +627,7 @@ export async function generateBossAdvice(): Promise<{ text: string, topic: strin
 
 export async function generateBossPoliticianCall(vagueDescription: string): Promise<string> {
     const prompt = `
-      You are the boss of a nightclub. You are calling your bouncer.
+      You are the boss of a restaurant. You are calling your bouncer.
       A local politician is coming tonight.
       Description: "${vagueDescription}"
       Tell the bouncer to treat them like royalty. We need their support for the liquor license.
@@ -649,7 +649,7 @@ export async function generateBossPoliticianCall(vagueDescription: string): Prom
 
 export async function generateBossFamilyCall(vagueDescription: string): Promise<string> {
     const prompt = `
-      You are the boss of a nightclub. You are calling your bouncer.
+      You are the boss of a restaurant. You are calling your bouncer.
       My nephew/niece is coming tonight.
       Description: "${vagueDescription}"
       They are annoying, but you HAVE to let them in. Family obligation.

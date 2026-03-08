@@ -497,19 +497,23 @@ export default function Game() {
         setTalkingTo('character');
         
         connectLive({
-            systemInstruction: `You are roleplaying as ${char.name}, a ${char.gender} ${char.archetype} trying to enter a nightclub.
-                Visuals: ${char.visualDescription}.
-                Current Mood: ${char.stats.mood}.
+            systemInstruction: `You are ${char.name}, a ${char.gender} customer (archetype: ${char.archetype}) standing at the entrance of a restaurant.
+                YOU ARE THE CUSTOMER. You want to get INSIDE the restaurant. You are NOT the bouncer.
+                The person you are speaking to is THE BOUNCER — they guard the door and decide who enters.
+                YOUR GOAL: Convince the bouncer to let you in. Approach them, state your purpose, and answer their questions.
+
+                Appearance: ${char.visualDescription}.
+                Your Mood: ${char.stats.mood}.
                 Budget: ${char.stats.budget}.
                 You are here with ${char.stats.groupSize} ${char.stats.groupSize === 1 ? 'person (just yourself)' : 'people total (including yourself)'}.
                 ${char.stats.isReservation ? `You have a reservation under the name "${char.name}". Mention it naturally if asked or if you think it helps.` : 'You do NOT have a reservation.'}
-                ${char.isInspector ? 'You are a Health Inspector on official duty. You have the legal right to enter. Be firm, professional, and show your official badge if asked.' : ''}
+                ${char.isInspector ? 'You are a Health Inspector on official duty. You have the legal right to enter. Be firm and professional. Show your official badge if asked.' : ''}
                 Reluctant to reveal name: ${char.wantsToHideName ? "YES" : "NO"}.
 
                 VOICE INSTRUCTION: Speak with a tone that matches your mood (${char.stats.mood}).
                 If Angry, sound annoyed or loud. If Desperate, sound pleading. If Arrogant, sound condescending.
 
-                You are talking to the bouncer.
+                You are speaking TO the bouncer. They are the one asking questions. You are the one answering and trying to get in.
                 Keep responses short, spoken, and in character. Do not describe your actions, just speak.
 
                 LANGUAGE RULES:
@@ -810,7 +814,7 @@ export default function Game() {
               else if (timing === 'IMMEDIATE') timeContext = "The person is there RIGHT NOW (or next in line). Tell the bouncer to let them in.";
               else if (timing === 'AFTER') timeContext = "The person JUST LEFT. You are checking if the bouncer let them in. If they did, good. If not, get angry.";
 
-              systemInstruction = `You are the Boss of the nightclub. You are calling the bouncer (the user).
+              systemInstruction = `You are the Boss of the restaurant. You are calling the bouncer (the user).
 Your personality is aggressive, busy, and no-nonsense.
 You are calling about a specific person: ${vagueDesc} (Name: ${targetChar.name}).
 
@@ -828,7 +832,7 @@ INSTRUCTIONS:
               
           } else if (type === 'SCOLDING') {
               const script = await generateBossScolding(currentReputation);
-              systemInstruction = `You are the Boss of the nightclub. You are calling the bouncer (the user).
+              systemInstruction = `You are the Boss of the restaurant. You are calling the bouncer (the user).
 Your personality is FURIOUS, shouting, and aggressive.
 The bouncer is doing a terrible job. Current Reputation: ${currentReputation}/100.
 
@@ -840,7 +844,7 @@ Threaten to fire them if they don't improve.`;
               setBossCallsMade(prev => ({ ...prev, scolding: true }));
           } else if (type === 'FIRED') {
               const script = await generateBossFiredCall();
-              systemInstruction = `You are the Boss of the nightclub. You are calling the bouncer (the user).
+              systemInstruction = `You are the Boss of the restaurant. You are calling the bouncer (the user).
 Your personality is COLD, FINAL, and ANGRY.
 You are firing the bouncer.
 
@@ -852,7 +856,7 @@ Tell them to get out.`;
               // We'll handle game over when the call ends
           } else if (type === 'ADVICE') {
               const adviceData = await generateBossAdvice();
-              systemInstruction = `You are the Boss of the nightclub. You are calling the bouncer (the user).
+              systemInstruction = `You are the Boss of the restaurant. You are calling the bouncer (the user).
 Your personality is DRUNK, EMOTIONAL, and OVERSHARING.
 You are calling to talk about your personal life (Topic: ${adviceData.topic}).
 
@@ -902,7 +906,7 @@ Be pathetic and weird.`;
       
       setBossAdviceAction(advice.action);
       
-      const systemInstruction = `You are the Boss of the nightclub. You just answered the phone.
+      const systemInstruction = `You are the Boss of the restaurant. You just answered the phone.
 The bouncer (user) is calling you for advice about the person at the door.
 Your advice is: "${advice.text}"
 
