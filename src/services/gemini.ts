@@ -332,9 +332,11 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
     // ROBUST FALLBACK GENERATION
     // If API fails, generate a random character locally to ensure flow continues with variety
     const availableArchetypes = ARCHETYPES.filter(a => !excludedArchetypes.includes(a));
-    const fallbackArchetype = availableArchetypes.length > 0 
-      ? availableArchetypes[Math.floor(Math.random() * availableArchetypes.length)]
-      : ARCHETYPES[Math.floor(Math.random() * ARCHETYPES.length)];
+    const fallbackArchetype = forceArchetype
+      ? forceArchetype
+      : (availableArchetypes.length > 0
+          ? availableArchetypes[Math.floor(Math.random() * availableArchetypes.length)]
+          : ARCHETYPES[Math.floor(Math.random() * ARCHETYPES.length)]);
 
     // Fallback: Pick from guest list 30% of the time to ensure some matches
     const useGuestList = Math.random() < 0.3 && guestList.length > 0;
@@ -362,13 +364,26 @@ export async function generateCharacter(difficulty: number = 1, excludedArchetyp
     if (gender === 'Male') voiceName = Math.random() > 0.5 ? 'Puck' : 'Fenrir';
     else voiceName = Math.random() > 0.5 ? 'Kore' : 'Zephyr';
 
+    const fallbackVisualDescriptions: Partial<Record<Archetype, string>> = {
+      Influencer: "A stylish social media influencer with a phone on a selfie stick.",
+      "Health Inspector": "A serious person in professional attire carrying an official clipboard.",
+      VIP: "A confident, well-dressed person expecting special treatment.",
+      "Drunk Regular": "A disheveled person with glassy eyes and an unsteady stance.",
+      "Food Critic": "A calm, observant diner dressed simply and taking mental notes.",
+      "Celebrity in Disguise": "A low-key person in plain clothes trying not to be recognized."
+    };
+
+    const fallbackVisualDescription =
+      fallbackVisualDescriptions[fallbackArchetype] ||
+      `A person who looks like a ${fallbackArchetype.toLowerCase()}.`;
+
     return {
       id: `fallback-${Date.now()}`,
       name,
       archetype: fallbackArchetype,
       gender,
       voiceName,
-      visualDescription: `A ${fallbackArchetype.toLowerCase()} looking person.`,
+      visualDescription: fallbackVisualDescription,
       backstory: `I'm just here to get inside. I hope the bouncer doesn't ask too many questions.`,
       idData: {
           hasID: Math.random() > 0.1,
@@ -754,4 +769,3 @@ export async function generateTTS(text: string, voiceName: string = "Charon"): P
     return null;
   }
 }
-
