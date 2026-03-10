@@ -1,6 +1,8 @@
 # The Bouncer
 
-A narrative decision game built with React + Vite + TypeScript where you play as the bouncer: you decide who gets in, manage reputation and cash, and handle boss calls and special cases.
+A narrative decision game built with React + Vite + TypeScript where you play as a nightclub bouncer. Each night you face a queue of AI-generated guests with unique backstories, IDs, and archetypes. You decide who gets in and who gets turned away — balancing cash, reputation, and your boss's increasingly unreasonable demands. The boss calls you mid-shift with tips, scoldings, or special instructions. Make the wrong calls too many times and you're fired.
+
+All characters, dialogue, and voice interactions are generated in real-time by Gemini.
 
 ## Stack
 
@@ -53,8 +55,30 @@ This repo includes:
    If the secret already exists:
    `printf "%s" "YOUR_GEMINI_API_KEY" | gcloud secrets versions add GEMINI_API_KEY --data-file=-`
 5. Grant Cloud Run runtime account access to the secret:
-   `PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format='value(projectNumber)')`
-   `gcloud secrets add-iam-policy-binding GEMINI_API_KEY --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"`
+   ```
+   PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format='value(projectNumber)')
+   gcloud secrets add-iam-policy-binding GEMINI_API_KEY \
+     --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+     --role="roles/secretmanager.secretAccessor"
+   ```
+6. Grant Cloud Build service account the permissions it needs to push images and deploy:
+   ```
+   PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format='value(projectNumber)')
+   CB_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+
+   # Push images to Artifact Registry
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:${CB_SA}" --role="roles/artifactregistry.writer"
+
+   # Deploy to Cloud Run
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:${CB_SA}" --role="roles/run.admin"
+
+   # Act as the compute service account during deploy
+   gcloud iam service-accounts add-iam-policy-binding \
+     "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+     --member="serviceAccount:${CB_SA}" --role="roles/iam.serviceAccountUser"
+   ```
 
 ### Deploy
 
@@ -63,16 +87,27 @@ This repo includes:
 After deploy, get the URL:
 `gcloud run services describe the-bouncer --region us-central1 --format='value(status.url)'`
 
-## Proof of Google Cloud Deployment
+## Architecture
 
-For proof recording (30-90s), show:
-1. Cloud Run service `the-bouncer` in Google Cloud Console.
-2. Recent request logs in Cloud Run Logs.
-3. The service URL responding (open app and/or hit `/api/gemini/generate-content` via request).
+The app is a React SPA served by `vite preview` in production. Gemini API calls are **never made from the browser** — instead, `vite.config.ts` registers a middleware plugin that exposes two server-side endpoints:
+
+- `POST /api/gemini/generate-content` — text/JSON generation (characters, dialogue, TTS)
+- `POST /api/gemini/live-token` — ephemeral token for Gemini Live API (boss voice calls)
+
+The `GEMINI_API_KEY` is consumed exclusively by this middleware. In Cloud Run it's injected via Secret Manager; locally it's read from `.env.local`.
+
+```
+Browser (React) → fetch('/api/gemini/*') → Vite Middleware (vite.config.ts) → Gemini API
+```
 
 ## Main Structure
 
-- `src/components/`: game UI and visual logic
-- `src/services/gemini.ts`: character, voice, and event generation with Gemini
+- `src/components/Game.tsx`: main game loop, boss voice sessions, shift logic
+- `src/components/CharacterCard.tsx`: guest display with ID card and decision buttons
+- `src/components/HUD.tsx`: reputation, cash, and night progress
+- `src/components/Phone.tsx`: boss call UI
+- `src/components/GuestList.tsx`: queue of pending guests
+- `src/services/gemini.ts`: all Gemini calls (characters, dialogue, TTS, images)
 - `src/types.ts`: shared types and global game state
-- `src/lib/`: audio utilities and helpers
+- `src/lib/audio.ts`: audio playback utilities
+- `src/lib/utils.ts`: general helpers
