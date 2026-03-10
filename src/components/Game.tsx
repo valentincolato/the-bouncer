@@ -1646,12 +1646,13 @@ INSTRUCTIONS:
                     <span className="text-[10px] font-bold uppercase leading-none text-black text-center">Guest List</span>
                 </div>
             </button>
-            <TutorialPopup 
+            <TutorialPopup
               isOpen={tutorialStep === 'CHECK_LIST'}
               onClose={() => setTutorialStep('BOSS_WARNING')}
               text="Check the list — are they on it?"
               position="bottom-right"
               customClasses="mb-24 mr-4 w-48"
+              autoCloseDelay={6000}
             />
         </div>
         <GuestList 
@@ -1678,12 +1679,13 @@ INSTRUCTIONS:
                 onClose={() => setShowGuestList(false)}
             />
          </motion.div>
-         <TutorialPopup 
+         <TutorialPopup
             isOpen={tutorialStep === 'CHECK_LIST'}
             onClose={() => setTutorialStep('BOSS_WARNING')}
             text="Check the list — are they on it?"
             position="bottom-right"
             customClasses="mb-32 mr-32 w-48"
+            autoCloseDelay={6000}
          />
       </div>
 

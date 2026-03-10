@@ -40,12 +40,13 @@ export function CharacterCard({ character, className, tutorialStep, onCloseTutor
             <h2 className="text-2xl font-bold text-black font-display uppercase tracking-wider">
                 {character.isNameRevealed ? character.name : "???"}
             </h2>
-            <TutorialPopup 
-              isOpen={tutorialStep === 'ASK_NAME'} 
-              onClose={onCloseTutorial || (() => {})} 
+            <TutorialPopup
+              isOpen={tutorialStep === 'ASK_NAME'}
+              onClose={onCloseTutorial || (() => {})}
               text="Ask for their name!"
               position="custom"
               customClasses="top-full left-0 mt-4 w-48"
+              autoCloseDelay={6000}
             />
         </div>
 

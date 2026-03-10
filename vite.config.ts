@@ -43,8 +43,11 @@ const createGeminiMiddleware = (apiKey?: string) => {
       if (pathname === '/api/gemini/generate-content' && req.method === 'POST') {
         const payload = await readJsonBody(req);
         const response = await ai.models.generateContent(payload);
+        const hasInlineData = response.candidates?.some((c: any) =>
+          c.content?.parts?.some((p: any) => p.inlineData)
+        );
         writeJson(res, 200, {
-          text: response.text || '',
+          text: hasInlineData ? '' : (response.text || ''),
           candidates: response.candidates || [],
         });
         return;
@@ -72,7 +75,8 @@ const createGeminiMiddleware = (apiKey?: string) => {
 
       writeJson(res, 404, { error: 'Not found' });
     } catch (error: any) {
-      writeJson(res, 500, {
+      const statusCode = typeof error?.status === 'number' ? error.status : 500;
+      writeJson(res, statusCode, {
         error: error?.message || 'Unexpected Gemini server error',
       });
     }

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="4" fill="#111111"/>
+
+  <!-- Body / suit -->
+  <path d="M6 29 L6 19 Q10 16 16 15 Q22 16 26 19 L26 29 Z" fill="#1c1c3a" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- White shirt / collar -->
+  <path d="M14 15.5 L16 19.5 L18 15.5" fill="#f0f0f0" stroke="#000" stroke-width="1"/>
+
+  <!-- Red bow tie -->
+  <polygon points="14,15.5 15.5,16.5 14,17.5" fill="#cc0000"/>
+  <polygon points="18,15.5 16.5,16.5 18,17.5" fill="#cc0000"/>
+  <circle cx="16" cy="16.5" r="0.9" fill="#cc0000"/>
+
+  <!-- Head -->
+  <circle cx="16" cy="9.5" r="6" fill="#e8a838" stroke="#000" stroke-width="1.5"/>
+
+  <!-- Ears -->
+  <ellipse cx="10.2" cy="9.5" rx="1.2" ry="1.8" fill="#e8a838" stroke="#000" stroke-width="1.2"/>
+  <ellipse cx="21.8" cy="9.5" rx="1.2" ry="1.8" fill="#e8a838" stroke="#000" stroke-width="1.2"/>
+
+  <!-- Sunglasses left lens -->
+  <rect x="10.5" y="7.5" width="4.5" height="3.2" rx="1.2" fill="#111" stroke="#000" stroke-width="1.2"/>
+  <!-- Sunglasses right lens -->
+  <rect x="17" y="7.5" width="4.5" height="3.2" rx="1.2" fill="#111" stroke="#000" stroke-width="1.2"/>
+  <!-- Bridge -->
+  <line x1="15" y1="9.1" x2="17" y2="9.1" stroke="#555" stroke-width="0.9"/>
+
+</svg>
