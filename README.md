@@ -82,10 +82,21 @@ This repo includes:
 
 ### Deploy
 
-`gcloud builds submit --config cloudbuild.yaml --substitutions _REGION=us-central1,_SERVICE=the-bouncer,_REPOSITORY=the-bouncer`
+Deploys are **manual** — there is no automatic deploy on push. To deploy, run:
 
-After deploy, get the URL:
-`gcloud run services describe the-bouncer --region us-central1 --format='value(status.url)'`
+```bash
+gcloud builds submit --config cloudbuild.yaml --substitutions _REGION=us-central1,_SERVICE=the-bouncer,_REPOSITORY=the-bouncer
+```
+
+This triggers Cloud Build to:
+1. Build the Docker image
+2. Push it to Artifact Registry
+3. Deploy it to Cloud Run (tagged as `latest`)
+
+After deploy, get the service URL:
+```bash
+gcloud run services describe the-bouncer --region us-central1 --format='value(status.url)'
+```
 
 ## Architecture
 
